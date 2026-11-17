@@ -396,6 +396,16 @@
     transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   }
   #sendBtn:hover:not(:disabled) { transform: scale(1.08); background: #ffffff; box-shadow: 0 6px 16px rgba(255,255,255,0.25); }
+  #sendBtn.is-stopping {
+    background: var(--danger);
+    color: #ffffff;
+    box-shadow: 0 4px 14px rgba(224, 85, 106, 0.45);
+  }
+  #sendBtn.is-stopping:hover {
+    background: #f06479;
+    transform: scale(1.08);
+    box-shadow: 0 6px 18px rgba(224, 85, 106, 0.6);
+  }
   #sendBtn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; box-shadow: none; }
   #fileInput { display: none; }
 
@@ -478,7 +488,7 @@
   .admin-metric-card .metric-val { font-size: 20px; font-weight: 700; color: var(--text); }
   .admin-metric-card .metric-lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; margin-top: 3px; }
 
-  /* UPDATES / ARCHIVE CARDS */
+  /* UPDATES / CHANGELOG CARDS */
   .archive-card {
     background: var(--bg);
     border: 1px solid var(--border);
@@ -491,7 +501,7 @@
   .archive-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 5px; }
   .archive-card-title { font-size: 13.5px; font-weight: 600; color: var(--text); }
   .archive-card-meta { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
-  .archive-card-snippet { font-size: 12.5px; color: #c7cad3; line-height: 1.45; margin-bottom: 8px; }
+  .archive-card-snippet { font-size: 12.5px; color: #c7cad3; line-height: 1.5; }
   .archive-badge { font-size: 10.5px; padding: 2px 7px; border-radius: 4px; background: rgba(79, 107, 240, 0.14); color: #a3b2f8; }
 
   /* OPAQUE AUTH GATE */
@@ -606,7 +616,7 @@
         </div>
         <div id="inputRightControls">
           <span id="inlineModelLabel">Not connected</span>
-          <button id="sendBtn" disabled>↑</button>
+          <button id="sendBtn" disabled title="Send message">↑</button>
         </div>
       </div>
     </div>
@@ -817,19 +827,26 @@ let availableModules = [];
 let pendingAttachments = [];
 let trainerMemory = [];
 let searchQuery = '';
-let archiveFilterQuery = '';
 let webSearchSettings = {
   provider: 'tavily',
   tavilyApiKey: '',
   braveApiKey: '',
-  enabledByDefault: false,
-  autoDailyBriefing: true
+  enabledByDefault: false
 };
 let dailyBriefing = { date: '', summary: '', weekKey: '' };
 let sharedKnowledge = [];
 let webSearchActive = false;
 let knowledgeBackfillRunning = false;
-let connSettings = { baseUrl: '', apiType: 'ollama', modelName: 'huihui_ai/qwen3-abliterated:8b', visionModelName: '' };
+let currentAbortController = null;
+let isGenerating = false;
+
+let connSettings = {
+  baseUrl: '',
+  apiType: 'ollama',
+  modelName: 'huihui_ai/qwen3-abliterated:8b',
+  visionModelName: '',
+  enableThinking: false
+};
 
 function usernameEmail(username) { return username.trim().toLowerCase() + "@zsfxcvoxmhespcktjuow.supabase.co"; }
 function validUsername(username) { return /^[a-zA-Z0-9_]{3,24}$/.test(username); }
@@ -912,6 +929,9 @@ async function loadSignedInProfile() {
     await loadSharedKnowledgeFromSupabase();
     await syncLocalKnowledgeToSupabase();
   } catch (e) {}
+
+  // Automatically sync major headlines & cybersecurity news on login
+  refreshDailyBriefing(false).catch(() => {});
 }
 
 async function submitAuth(mode) {
@@ -964,6 +984,13 @@ async function submitAuth(mode) {
 }
 
 async function handleSignOut() {
+  if (currentAbortController) {
+    try { currentAbortController.abort(); } catch (e) {}
+    currentAbortController = null;
+  }
+  isGenerating = false;
+  setSendButtonGenerating(false);
+
   await supabaseClient.auth.signOut();
   signedInProfile = null;
   currentUserId = null;
@@ -971,6 +998,23 @@ async function handleSignOut() {
   activeChatId = null;
   pendingAttachments = [];
   signUpFieldRevealed = false;
+
+  // Sever connection & clear all configured connection settings on logout
+  connSettings = {
+    baseUrl: '',
+    apiType: 'ollama',
+    modelName: '',
+    visionModelName: '',
+    enableThinking: false
+  };
+  connected = false;
+  availableModules = [];
+  const modelBadge = document.getElementById('modelBadge');
+  if (modelBadge) modelBadge.textContent = '';
+  const inlineLabel = document.getElementById('inlineModelLabel');
+  if (inlineLabel) inlineLabel.textContent = 'Not connected';
+  updateConnectionUIState();
+
   document.getElementById('settingsOverlay').classList.remove('open');
   document.getElementById('chatList').innerHTML = '';
   document.getElementById('chat').innerHTML = '';
@@ -1005,7 +1049,13 @@ function saveMemory() { localStorage.setItem(MEMORY_KEY, JSON.stringify(trainerM
 function loadSearchSettings() {
   try {
     const raw = localStorage.getItem(SEARCH_KEY);
-    if (raw) webSearchSettings = Object.assign(webSearchSettings, JSON.parse(raw));
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      webSearchSettings.provider = parsed.provider || 'tavily';
+      webSearchSettings.tavilyApiKey = parsed.tavilyApiKey || '';
+      webSearchSettings.braveApiKey = parsed.braveApiKey || '';
+      webSearchSettings.enabledByDefault = !!parsed.enabledByDefault;
+    }
   } catch (e) {}
   webSearchActive = !!webSearchSettings.enabledByDefault;
   const btn = document.getElementById('webSearchBtn');
@@ -1188,7 +1238,6 @@ async function refreshDailyBriefing(force = false) {
   const todayKey = new Date().toISOString().slice(0, 10);
   const weekKey = getWeekKey();
   if (!force) {
-    if (!webSearchSettings.autoDailyBriefing) return;
     if (dailyBriefing.weekKey === weekKey && dailyBriefing.summary) return;
   }
   const hasKey = webSearchSettings.provider === 'brave' ? !!webSearchSettings.braveApiKey : !!webSearchSettings.tavilyApiKey;
@@ -1513,6 +1562,41 @@ function isUserSuspended() {
   return new Date(signedInProfile.suspended_until) > new Date();
 }
 
+function setSendButtonGenerating(active) {
+  isGenerating = active;
+  const sendBtn = document.getElementById('sendBtn');
+  if (!sendBtn) return;
+  if (active) {
+    sendBtn.disabled = false;
+    sendBtn.classList.add('is-stopping');
+    sendBtn.textContent = '■';
+    sendBtn.title = 'Stop generating';
+  } else {
+    sendBtn.classList.remove('is-stopping');
+    sendBtn.textContent = '↑';
+    sendBtn.title = 'Send message';
+    sendBtn.disabled = !connected || isUserSuspended();
+  }
+}
+
+function stopCurrentGeneration() {
+  if (currentAbortController) {
+    try { currentAbortController.abort(); } catch (e) {}
+    currentAbortController = null;
+  }
+  const chat = getActiveChat();
+  if (chat && chat.messages.length > 0) {
+    const last = chat.messages[chat.messages.length - 1];
+    if (last && last.pending) {
+      chat.messages[chat.messages.length - 1] = { role: 'assistant', content: 'Stopped.' };
+      saveChats();
+      renderSidebar();
+      renderChat();
+    }
+  }
+  setSendButtonGenerating(false);
+}
+
 function updateConnectionUIState() {
   const overlayPrompt = document.getElementById('inputOverlayPrompt');
   const input = document.getElementById('userInput');
@@ -1531,7 +1615,7 @@ function updateConnectionUIState() {
     overlayPrompt.classList.add('hidden');
     input.disabled = false;
     input.placeholder = 'Ask anything...';
-    sendBtn.disabled = false;
+    if (!isGenerating) sendBtn.disabled = false;
   } else {
     overlayPrompt.classList.remove('hidden');
     input.value = '';
@@ -1727,14 +1811,14 @@ function renderHomePanel() {
     <div class="info-line"><span class="label">Version</span><span>${APP_VERSION}</span></div>
     <div class="info-line"><span class="label">Account</span><span>${escapeHtml(signedInProfile?.username || '')}</span></div>
     <div class="info-line"><span class="label">Primary model</span><span>${escapeHtml(connSettings.modelName) || 'none'}</span></div>
-    <div class="info-line"><span class="label">Vision model (auto-routed for images)</span><span>${escapeHtml(getEffectiveVisionModel()) || 'none detected'}</span></div>
+    <div class="info-line"><span class="label">Vision model</span><span>${escapeHtml(getEffectiveVisionModel()) || 'none detected'}</span></div>
+    <div class="info-line"><span class="label">Model thinking</span><span>${connSettings.enableThinking ? 'Enabled' : 'Disabled (fast)'}</span></div>
     <div class="info-line">
       <span class="label">Modules</span>
       <button type="button" class="modules-toggle-btn" id="toggleModulesBtn">${availableModules.length} available ▾</button>
     </div>
     <div id="modulesDrawer">${modulesListHtml}</div>
     <div class="info-line"><span class="label">Saved chats</span><span>${chats.length}</span></div>
-    <div class="info-line"><span class="label">Shared research sources</span><span>${sharedKnowledge.length}</span></div>
   `;
   document.getElementById('toggleModulesBtn').addEventListener('click', () => {
     document.getElementById('modulesDrawer').classList.toggle('open');
@@ -1746,7 +1830,11 @@ function renderTrainerPanel() {
     <h2>Trainer</h2>
     <p style="color:var(--muted); font-size:13px; margin-bottom:14px;">Standing instructions injected into every conversation.</p>
     <div class="settings-row"><textarea id="newMemoryText" placeholder="e.g. Always be concise and direct."></textarea></div>
-    <button class="settings-btn" id="addMemoryBtn">Add Memory</button>
+    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+      <button class="settings-btn" id="addMemoryBtn">Add Memory</button>
+      <button class="settings-btn secondary" id="trainerSyncNowBtn">Sync past 7 days now</button>
+    </div>
+    <div id="trainerSyncStatus" style="margin-top:8px; font-size:12px; color:#4fd87f;"></div>
     <div style="margin-top:20px;">
       ${trainerMemory.map((m, idx) => `<div class="memory-item"><span>${escapeHtml(m)}</span><button class="remove-mem" data-idx="${idx}">✕</button></div>`).join('')}
     </div>
@@ -1755,6 +1843,14 @@ function renderTrainerPanel() {
     const val = document.getElementById('newMemoryText').value.trim();
     if (!val) return;
     trainerMemory.push(val); saveMemory(); renderTrainerPanel();
+  });
+  document.getElementById('trainerSyncNowBtn').addEventListener('click', async () => {
+    const status = document.getElementById('trainerSyncStatus');
+    status.style.color = 'var(--muted)';
+    status.textContent = 'Syncing past 7 days of headlines & cybersecurity news...';
+    await refreshDailyBriefing(true);
+    status.style.color = '#4fd87f';
+    status.textContent = 'Past 7 days intelligence synced.';
   });
   settingsContent.querySelectorAll('.remove-mem').forEach(btn => {
     btn.addEventListener('click', () => { trainerMemory.splice(parseInt(btn.dataset.idx, 10), 1); saveMemory(); renderTrainerPanel(); });
@@ -1791,11 +1887,12 @@ function renderConnectionPanel() {
       <input id="connModelName" placeholder="e.g. huihui_ai/qwen3-abliterated:8b" value="${escapeHtml(connSettings.modelName)}" ${isLocked ? 'disabled' : ''}>
     </div>
     <div class="settings-row">
-      <label>Vision Model (Auto-used when images are attached)</label>
+      <label>Vision Model (for image attachments)</label>
       <input id="connVisionModelName" placeholder="Auto-detected or e.g. huihui_ai/qwen2.5-vl-abliterated:7b" value="${escapeHtml(connSettings.visionModelName)}">
-      <div style="font-size:11.5px; color:var(--muted); margin-top:5px;">
-        When you attach an image, PJAI automatically routes that message to this vision model so text-only models never throw 400 Multimodal errors.
-      </div>
+    </div>
+    <div class="settings-row" style="display:flex; align-items:center; gap:8px;">
+      <input type="checkbox" id="connEnableThinking" ${connSettings.enableThinking ? 'checked' : ''} style="width:auto;">
+      <label style="margin:0; text-transform:none; font-size:13px; letter-spacing:0;">Enable Model Thinking / Reasoning (slower responses)</label>
     </div>
     <button class="settings-btn" id="connConnectBtn">Connect</button>
     <div id="connStatusModal" style="margin-top:10px; font-size:12.5px; color:${connected ? '#4fd87f' : 'var(--muted)'};">${connected ? 'connected' : 'not connected'}</div>
@@ -1833,6 +1930,7 @@ function renderConnectionPanel() {
     connSettings.apiType = document.getElementById('connApiType').value;
     connSettings.modelName = document.getElementById('connModelName').value.trim();
     connSettings.visionModelName = document.getElementById('connVisionModelName').value.trim();
+    connSettings.enableThinking = document.getElementById('connEnableThinking').checked;
     await testConnection(document.getElementById('connStatusModal'));
   });
 }
@@ -1840,9 +1938,9 @@ function renderConnectionPanel() {
 function renderSearchPanel() {
   const isBrave = webSearchSettings.provider === 'brave';
   settingsContent.innerHTML = `
-    <h2>Search & Intelligence Sync</h2>
+    <h2>Search</h2>
     <p style="color:var(--muted); font-size:13px; margin-bottom:14px;">
-      Pull live web results, save useful research to your shared archive, and sync major headlines and cybersecurity news.
+      Configure your web search provider and API key for live web browsing in chat.
     </p>
     <div class="settings-row">
       <label>Search Provider</label>
@@ -1863,26 +1961,8 @@ function renderSearchPanel() {
       <input type="checkbox" id="searchEnabledByDefault" ${webSearchSettings.enabledByDefault ? 'checked' : ''} style="width:auto;">
       <label style="margin:0; text-transform:none; font-size:13px; letter-spacing:0;">Turn on web search by default for new chats</label>
     </div>
-    <div class="settings-row" style="display:flex; align-items:center; gap:8px;">
-      <input type="checkbox" id="autoDailyBriefingChk" ${webSearchSettings.autoDailyBriefing ? 'checked' : ''} style="width:auto;">
-      <label style="margin:0; text-transform:none; font-size:13px; letter-spacing:0;">Auto-sync major headlines & cybersecurity news from the past 7 days</label>
-    </div>
-    <div style="display:flex; gap:10px; align-items:center;">
-      <button class="settings-btn" id="saveSearchBtn">Save</button>
-      <button class="settings-btn secondary" id="syncBriefingNowBtn">Sync Past 7 Days Now</button>
-    </div>
+    <button class="settings-btn" id="saveSearchBtn">Save</button>
     <div id="searchSaveStatus" style="margin-top:8px; font-size:12px; color:#4fd87f;"></div>
-
-    <div style="margin-top:20px; padding-top:16px; border-top:1px solid var(--border);">
-      <h3 style="font-size:14px; margin:0 0 8px;">Historical Knowledge Backfill</h3>
-      <p style="color:var(--muted); font-size:12px; line-height:1.5;">Search month by month across a date range to populate the Shared Research Archive.</p>
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-        <div class="settings-row"><label>Start date</label><input type="date" id="backfillStartDate" value="2025-01-01"></div>
-        <div class="settings-row"><label>End date</label><input type="date" id="backfillEndDate" value="${new Date().toISOString().slice(0,10)}"></div>
-      </div>
-      <button class="settings-btn secondary" id="startBackfillBtn">Build Historical Archive</button>
-      <div id="backfillStatus" style="margin-top:8px; font-size:12px; color:var(--muted);"></div>
-    </div>
   `;
 
   document.getElementById('searchProviderSelect').addEventListener('change', (e) => {
@@ -1895,124 +1975,59 @@ function renderSearchPanel() {
     webSearchSettings.tavilyApiKey = document.getElementById('tavilyApiKeyInput').value.trim();
     webSearchSettings.braveApiKey = document.getElementById('braveApiKeyInput').value.trim();
     webSearchSettings.enabledByDefault = document.getElementById('searchEnabledByDefault').checked;
-    webSearchSettings.autoDailyBriefing = document.getElementById('autoDailyBriefingChk').checked;
     saveSearchSettings();
     webSearchActive = !!webSearchSettings.enabledByDefault;
     document.getElementById('webSearchBtn').classList.toggle('active', webSearchActive);
     document.getElementById('searchSaveStatus').textContent = 'Search settings saved.';
   });
-  document.getElementById('syncBriefingNowBtn').addEventListener('click', async () => {
-    const status = document.getElementById('searchSaveStatus');
-    status.textContent = 'Syncing past 7 days...';
-    await refreshDailyBriefing(true);
-    status.textContent = 'Weekly intelligence synced.';
-  });
-  document.getElementById('startBackfillBtn').addEventListener('click', async () => {
-    const statusEl = document.getElementById('backfillStatus');
-    const start = document.getElementById('backfillStartDate').value;
-    const end = document.getElementById('backfillEndDate').value;
-    await runHistoricalBackfill(start, end, statusEl);
-  });
 }
 
 function renderUpdatesPanel() {
-  const sorted = [...sharedKnowledge].sort((a, b) => new Date(b.savedAt || 0) - new Date(a.savedAt || 0));
-  const filtered = sorted.filter(item => {
-    if (!archiveFilterQuery.trim()) return true;
-    const q = archiveFilterQuery.toLowerCase();
-    return `${item.title || ''} ${item.content || ''} ${item.sourceType || ''}`.toLowerCase().includes(q);
-  });
-
   const briefingText = dailyBriefing.date
     ? `${dailyBriefing.weekKey || dailyBriefing.date}`
     : 'Not synced';
 
   settingsContent.innerHTML = `
-    <h2>Updates & Shared Knowledge Archive</h2>
+    <h2>Updates</h2>
     <p style="color:var(--muted); font-size:13px; line-height:1.5; margin-bottom:14px;">
-      Manage saved intelligence sources, weekly news digests, and trainer memories injected into AI context.
+      Release notes, active system status, and weekly briefing state for PJAI.
     </p>
 
     <div class="admin-metrics-grid">
-      <div class="admin-metric-card"><div class="metric-val">${sharedKnowledge.length}</div><div class="metric-lbl">Archive Sources</div></div>
+      <div class="admin-metric-card"><div class="metric-val">${APP_VERSION}</div><div class="metric-lbl">Current Version</div></div>
       <div class="admin-metric-card"><div class="metric-val">${trainerMemory.length}</div><div class="metric-lbl">Trainer Rules</div></div>
       <div class="admin-metric-card"><div class="metric-val" style="font-size:15px; padding-top:4px;">${escapeHtml(briefingText)}</div><div class="metric-lbl">Weekly Briefing</div></div>
     </div>
 
-    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px;">
-      <button class="settings-btn secondary" id="refreshUpdatesBtn">Refresh from Supabase</button>
-      <button class="settings-btn secondary" id="updatesSyncNowBtn">Sync Past 7 Days Now</button>
+    <div class="archive-card">
+      <div class="archive-card-header">
+        <div class="archive-card-title">PJAI ${APP_VERSION} — Performance & Controls</div>
+        <span class="archive-badge">Latest</span>
+      </div>
+      <div class="archive-card-snippet">
+        • Added an interactive Stop button to immediately abort in-flight AI responses.<br>
+        • Disabled slow model reasoning chains (<code>think: false</code>) by default for faster prompt replies.<br>
+        • Enabled automatic background syncing of major world & cybersecurity headlines.<br>
+        • Full session & host connection teardown upon logout.
+      </div>
     </div>
-    <div id="updatesStatus" style="margin-bottom:12px; color:#4fd87f; font-size:12px;"></div>
 
-    <div class="settings-row" style="margin-bottom:14px;">
-      <input id="archiveSearchInput" placeholder="Filter saved research sources..." value="${escapeHtml(archiveFilterQuery)}">
-    </div>
-
-    <h3 style="font-size:14px; margin:14px 0 8px;">Saved Research Sources (${filtered.length})</h3>
-    <div id="updatesList">
-      ${filtered.length ? filtered.map(item => `
-        <div class="archive-card">
-          <div class="archive-card-header">
-            <div class="archive-card-title">${escapeHtml(item.title || 'Untitled result')}</div>
-            <button class="remove-mem" data-del-source="${escapeHtml(item.id)}" title="Remove source">✕</button>
-          </div>
-          <div class="archive-card-meta">
-            <span class="archive-badge">${escapeHtml(item.sourceType || 'Research')}</span>
-            · ${escapeHtml(item.sourceLabel || 'Source')}
-            ${item.savedAt ? ' · ' + new Date(item.savedAt).toLocaleDateString() : ''}
-          </div>
-          ${item.content ? `<div class="archive-card-snippet">${escapeHtml(item.content)}</div>` : ''}
-          ${item.url ? `<a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" style="font-size:12px; color:#8ab4f8; text-decoration:none;">Open source ↗</a>` : ''}
-        </div>
-      `).join('') : '<p style="color:var(--muted); font-size:13px;">No matching research sources saved yet. Toggle web search (🌐) in chat or sync weekly news to populate.</p>'}
+    <div class="archive-card">
+      <div class="archive-card-header">
+        <div class="archive-card-title">PJAI 1.11 — Multimodal Routing & Admin Controls</div>
+        <span class="archive-badge">Release</span>
+      </div>
+      <div class="archive-card-snippet">
+        • Automatic vision model routing for image attachments and multimodal history sanitization.<br>
+        • Curated 6-model preset selector with custom model override.<br>
+        • Account email management and admin user chat suspension tools.
+      </div>
     </div>
   `;
-
-  document.getElementById('archiveSearchInput').addEventListener('input', (e) => {
-    archiveFilterQuery = e.target.value;
-    renderUpdatesPanel();
-    const inp = document.getElementById('archiveSearchInput');
-    if (inp) { inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }
-  });
-
-  document.getElementById('refreshUpdatesBtn').addEventListener('click', async () => {
-    const status = document.getElementById('updatesStatus');
-    status.textContent = 'Refreshing from Supabase...';
-    status.style.color = 'var(--muted)';
-    try {
-      await loadSharedKnowledgeFromSupabase();
-      renderUpdatesPanel();
-      document.getElementById('updatesStatus').textContent = 'Archive synced with Supabase.';
-    } catch (e) {
-      status.textContent = 'Refresh error: ' + e.message;
-      status.style.color = 'var(--danger)';
-    }
-  });
-
-  document.getElementById('updatesSyncNowBtn').addEventListener('click', async () => {
-    const status = document.getElementById('updatesStatus');
-    status.textContent = 'Syncing past 7 days of headlines & cybersecurity news...';
-    status.style.color = 'var(--muted)';
-    await refreshDailyBriefing(true);
-    renderUpdatesPanel();
-    document.getElementById('updatesStatus').textContent = 'Weekly intelligence sync complete.';
-  });
-
-  settingsContent.querySelectorAll('[data-del-source]').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const sid = btn.dataset.delSource;
-      sharedKnowledge = sharedKnowledge.filter(k => String(k.id) !== String(sid));
-      saveSharedKnowledge();
-      if (signedInProfile) {
-        supabaseClient.from('shared_knowledge').delete().eq('id', sid).catch(() => {});
-      }
-      renderUpdatesPanel();
-    });
-  });
 }
 
-async function runWebSearch(query, maxResults = 4, dateRange = null) {
+async function runWebSearch(query, maxResults = 4, dateRange = null, signal = null) {
+  const fetchOpts = signal ? { signal } : {};
   if (webSearchSettings.provider === 'brave') {
     if (!webSearchSettings.braveApiKey) throw new Error('No Brave Search API key set in Settings → Search.');
     let effectiveQuery = query;
@@ -2022,9 +2037,16 @@ async function runWebSearch(query, maxResults = 4, dateRange = null) {
     const targetUrl = `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(effectiveQuery)}&count=${maxResults}`;
     let res;
     try {
-      res = await fetch(targetUrl, { headers: { 'Accept': 'application/json', 'X-Subscription-Token': webSearchSettings.braveApiKey } });
+      res = await fetch(targetUrl, {
+        ...fetchOpts,
+        headers: { 'Accept': 'application/json', 'X-Subscription-Token': webSearchSettings.braveApiKey }
+      });
     } catch (e) {
-      res = await fetch(`https://corsproxy.io/?${encodeURIComponent(targetUrl)}`, { headers: { 'Accept': 'application/json', 'X-Subscription-Token': webSearchSettings.braveApiKey } });
+      if (e.name === 'AbortError') throw e;
+      res = await fetch(`https://corsproxy.io/?${encodeURIComponent(targetUrl)}`, {
+        ...fetchOpts,
+        headers: { 'Accept': 'application/json', 'X-Subscription-Token': webSearchSettings.braveApiKey }
+      });
     }
     if (!res.ok) throw new Error('Brave search failed: ' + res.status);
     const data = await res.json();
@@ -2044,6 +2066,7 @@ async function runWebSearch(query, maxResults = 4, dateRange = null) {
     body.time_range = dateRange.timeRange;
   }
   const res = await fetch('https://api.tavily.com/search', {
+    ...fetchOpts,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + webSearchSettings.tavilyApiKey },
     body: JSON.stringify(body)
@@ -2080,6 +2103,18 @@ async function renderAdminPanel() {
       <div class="admin-metric-card"><div class="metric-val">${adminCount}</div><div class="metric-lbl">Admins</div></div>
       <div class="admin-metric-card"><div class="metric-val">${suspendedCount}</div><div class="metric-lbl">Suspended</div></div>
     </div>
+
+    <div style="margin-bottom:20px; padding:14px; background:var(--bg); border:1px solid var(--border); border-radius:10px;">
+      <h3 style="font-size:14px; margin:0 0 6px;">Historical Knowledge Backfill</h3>
+      <p style="color:var(--muted); font-size:12px; line-height:1.5; margin:0 0 10px;">Search month by month across a date range to populate the Shared Research Archive (${sharedKnowledge.length} sources archived).</p>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        <div class="settings-row" style="margin-bottom:10px;"><label>Start date</label><input type="date" id="adminBackfillStartDate" value="2025-01-01"></div>
+        <div class="settings-row" style="margin-bottom:10px;"><label>End date</label><input type="date" id="adminBackfillEndDate" value="${new Date().toISOString().slice(0,10)}"></div>
+      </div>
+      <button class="settings-btn secondary" id="adminStartBackfillBtn">Build Historical Archive</button>
+      <div id="adminBackfillStatus" style="margin-top:8px; font-size:12px; color:var(--muted);"></div>
+    </div>
+
     <h3 style="font-size:14px; margin:14px 0 8px;">User Roles & Chat Suspensions</h3>
     <div id="adminStatus" style="font-size:12px; color:var(--muted); margin-bottom:10px;"></div>
     ${data.map(u => {
@@ -2106,6 +2141,13 @@ async function renderAdminPanel() {
       </div>`;
     }).join('')}
   `;
+
+  document.getElementById('adminStartBackfillBtn').addEventListener('click', async () => {
+    const statusEl = document.getElementById('adminBackfillStatus');
+    const start = document.getElementById('adminBackfillStartDate').value;
+    const end = document.getElementById('adminBackfillEndDate').value;
+    await runHistoricalBackfill(start, end, statusEl);
+  });
 
   settingsContent.querySelectorAll('[data-role-user]').forEach(btn => {
     btn.addEventListener('click', async () => {
@@ -2145,6 +2187,11 @@ async function renderAdminPanel() {
 }
 
 async function handleSend() {
+  if (isGenerating) {
+    stopCurrentGeneration();
+    return;
+  }
+
   if (currentUserId && supabaseClient) {
     try {
       const { data: freshProfile } = await supabaseClient.from('profiles').select('suspended_until').eq('id', currentUserId).single();
@@ -2178,7 +2225,7 @@ async function handleSend() {
       chat.messages.push({ role: 'user', content: promptText, attachments: attachmentsForMsg });
       chat.messages.push({
         role: 'assistant',
-        content: `Error: No vision-capable model is available to analyze images. Your active model (\`${targetModel}\`) is text-only.\n\n**How to fix:**\n1. Pull a vision model on your host (e.g. \`ollama pull huihui_ai/qwen2.5-vl-abliterated:7b\` or \`ollama pull qwen2.5vl:7b\`).\n2. Select it in **Settings → Connection** and click **Connect** (PJAI will automatically route image attachments to it).`
+        content: `Error: No vision-capable model is available to analyze images. Your active model (\`${targetModel}\`) is text-only.\n\n**How to fix:**\n1. Pull a vision model on your host (e.g. \`ollama pull huihui_ai/qwen2.5-vl-abliterated:7b\` or \`ollama pull qwen2.5vl:7b\`).\n2. Select it in **Settings → Connection** and click **Connect**.`
       });
       input.value = '';
       input.style.height = 'auto';
@@ -2204,11 +2251,14 @@ async function handleSend() {
   renderSidebar();
   renderChat();
 
-  document.getElementById('sendBtn').disabled = true;
+  const abortController = new AbortController();
+  currentAbortController = abortController;
+  setSendButtonGenerating(true);
+
   const usingSearch = webSearchActive;
   chat.messages.push({
     role: 'assistant',
-    content: usingSearch ? 'searching...' : (routedToVision ? `analyzing image with ${targetModel}...` : 'thinking...'),
+    content: usingSearch ? 'searching...' : (routedToVision ? 'analyzing image...' : 'thinking...'),
     pending: true
   });
   renderChat();
@@ -2234,7 +2284,7 @@ async function handleSend() {
 
     if (usingSearch && promptText) {
       try {
-        const results = await runWebSearch(promptText, 4);
+        const results = await runWebSearch(promptText, 4, null, abortController.signal);
         if (results.length > 0) {
           searchResultsUsed = results;
           saveSearchResultsToKnowledge(results, promptText, 'manual web search');
@@ -2242,14 +2292,17 @@ async function handleSend() {
           systemPrompts.push(searchBlock);
         }
       } catch (searchErr) {
+        if (searchErr.name === 'AbortError') throw searchErr;
         systemPrompts.push('Note: web search failed (' + searchErr.message + ').');
       }
-      chat.messages[chat.messages.length - 1].content = 'thinking...';
+      if (abortController.signal.aborted) throw new DOMException('Aborted', 'AbortError');
+      chat.messages[chat.messages.length - 1].content = routedToVision ? 'analyzing image...' : 'thinking...';
       renderChat();
     }
 
     const rawHistory = chat.messages.filter(m => !m.pending).slice(-10);
     const targetSupportsVision = isVisionCapableModelName(targetModel) || hasNewImages;
+    const enableThinking = !!connSettings.enableThinking;
     let replyText = '';
 
     if (connSettings.apiType === 'ollama') {
@@ -2281,8 +2334,14 @@ async function handleSend() {
 
       const res = await fetch(base + '/api/chat', {
         method: 'POST',
+        signal: abortController.signal,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: targetModel, messages: ollamaMessages, stream: false })
+        body: JSON.stringify({
+          model: targetModel,
+          messages: ollamaMessages,
+          stream: false,
+          think: enableThinking
+        })
       });
       if (!res.ok) {
         const errBody = await res.text().catch(() => '');
@@ -2314,10 +2373,20 @@ async function handleSend() {
         }
       });
 
+      const payload = {
+        model: targetModel,
+        messages: openaiMessages,
+        stream: false
+      };
+      if (!enableThinking) {
+        payload.reasoning_effort = 'none';
+      }
+
       const res = await fetch(base + '/v1/chat/completions', {
         method: 'POST',
+        signal: abortController.signal,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: targetModel, messages: openaiMessages })
+        body: JSON.stringify(payload)
       });
       if (!res.ok) throw new Error('request failed: ' + res.status);
       const data = await res.json();
@@ -2331,13 +2400,19 @@ async function handleSend() {
       routedModel: routedToVision ? targetModel : null
     };
   } catch (err) {
-    chat.messages[chat.messages.length - 1] = { role: 'assistant', content: 'Error: ' + err.message };
+    if (err && err.name === 'AbortError') {
+      chat.messages[chat.messages.length - 1] = { role: 'assistant', content: 'Stopped.' };
+    } else {
+      chat.messages[chat.messages.length - 1] = { role: 'assistant', content: 'Error: ' + err.message };
+    }
+  } finally {
+    currentAbortController = null;
+    setSendButtonGenerating(false);
   }
 
   saveChats();
   renderSidebar();
   renderChat();
-  document.getElementById('sendBtn').disabled = false;
   input.focus();
 }
 
@@ -2399,7 +2474,7 @@ function initApp() {
   userInputEl.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSend();
+      if (!isGenerating) handleSend();
     }
   });
 
