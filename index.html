@@ -446,6 +446,7 @@
     padding: 10px 12px; border-radius: 8px; font-size: 13.5px; font-family: inherit;
   }
   .settings-row input:focus, .settings-row select:focus, .settings-row textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--border-glow); }
+  .settings-row input:disabled { opacity: 0.55; cursor: not-allowed; background: rgba(13, 14, 17, 0.5); }
   .settings-row textarea { resize: vertical; min-height: 80px; }
   .settings-btn {
     background: var(--accent); color: white; border: none; padding: 10px 18px;
@@ -798,12 +799,12 @@ const KNOWLEDGE_KEY = 'local_ai_shared_knowledge_v1';
 const APP_VERSION = '1.12';
 
 const COMMON_MODEL_PRESETS = [
-  { value: 'huihui_ai/qwen3-abliterated:8b', label: 'huihui_ai/qwen3-abliterated:8b (Uncensored Text)' },
-  { value: 'huihui_ai/qwen3-abliterated:14b', label: 'huihui_ai/qwen3-abliterated:14b (Uncensored Text 14B)' },
-  { value: 'huihui_ai/qwen2.5-vl-abliterated:7b', label: 'huihui_ai/qwen2.5-vl-abliterated:7b (Uncensored Vision)' },
-  { value: 'qwen3:8b', label: 'qwen3:8b (Standard Qwen3)' },
-  { value: 'qwen2.5vl:7b', label: 'qwen2.5vl:7b (Qwen2.5 Vision)' },
-  { value: 'gemma3:12b', label: 'gemma3:12b (Gemma 3 Vision + Text)' }
+  { value: 'huihui_ai/qwen3-abliterated:8b', label: 'huihui_ai/qwen3-abliterated:8b' },
+  { value: 'huihui_ai/qwen3-abliterated:14b', label: 'huihui_ai/qwen3-abliterated:14b' },
+  { value: 'huihui_ai/qwen2.5-vl-abliterated:7b', label: 'huihui_ai/qwen2.5-vl-abliterated:7b' },
+  { value: 'qwen3:8b', label: 'qwen3:8b' },
+  { value: 'qwen2.5vl:7b', label: 'qwen2.5vl:7b' },
+  { value: 'gemma3:12b', label: 'gemma3:12b' }
 ];
 
 let signedInProfile = null;
@@ -1763,6 +1764,7 @@ function renderTrainerPanel() {
 function renderConnectionPanel() {
   const isPreset = COMMON_MODEL_PRESETS.some(p => p.value === connSettings.modelName);
   const selectedPreset = isPreset ? connSettings.modelName : '__custom__';
+  const isLocked = selectedPreset !== '__custom__';
 
   settingsContent.innerHTML = `
     <h2>Connection</h2>
@@ -1785,8 +1787,8 @@ function renderConnectionPanel() {
       </select>
     </div>
     <div class="settings-row">
-      <label>Model Name (Editable)</label>
-      <input id="connModelName" placeholder="e.g. huihui_ai/qwen3-abliterated:8b" value="${escapeHtml(connSettings.modelName)}">
+      <label>Model Name</label>
+      <input id="connModelName" placeholder="e.g. huihui_ai/qwen3-abliterated:8b" value="${escapeHtml(connSettings.modelName)}" ${isLocked ? 'disabled' : ''}>
     </div>
     <div class="settings-row">
       <label>Vision Model (Auto-used when images are attached)</label>
@@ -1806,10 +1808,12 @@ function renderConnectionPanel() {
   presetSelect.addEventListener('change', () => {
     const val = presetSelect.value;
     if (val === '__custom__') {
+      modelInput.disabled = false;
       modelInput.focus();
       modelInput.select();
     } else {
       modelInput.value = val;
+      modelInput.disabled = true;
       if (isVisionCapableModelName(val)) {
         visionInput.value = val;
       }
@@ -1817,9 +1821,8 @@ function renderConnectionPanel() {
   });
 
   modelInput.addEventListener('input', () => {
+    if (modelInput.disabled) return;
     const typed = modelInput.value.trim();
-    const match = COMMON_MODEL_PRESETS.find(p => p.value === typed);
-    presetSelect.value = match ? match.value : '__custom__';
     if (isVisionCapableModelName(typed) && !visionInput.value.trim()) {
       visionInput.value = typed;
     }
