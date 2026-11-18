@@ -1358,41 +1358,75 @@ function updateConnectionUIState() {
 }
 
 async function testConnection(statusEl) {
-  const base = (connSettings.baseUrl || '').replace(/\/$/, '');
+  let rawBase = (connSettings.baseUrl || '').trim();
+  if (!rawBase) {
+    if (statusEl) {
+      statusEl.textContent = 'Enter a Server URL first (e.g. http://100.x.x.x:11434).';
+      statusEl.style.color = 'var(--danger)';
+    }
+    return false;
+  }
+  if (!/^https?:\/\//i.test(rawBase)) {
+    rawBase = 'http://' + rawBase;
+    connSettings.baseUrl = rawBase;
+  }
+  const base = rawBase.replace(/\/$/, '');
+
+  if (window.location.protocol === 'https:' && base.startsWith('http://') && !/^http:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/i.test(base)) {
+    if (statusEl) {
+      statusEl.textContent = 'Blocked: Mobile browsers block HTTP requests from HTTPS pages (Mixed Content).';
+      statusEl.style.color = 'var(--danger)';
+    }
+    connected = false;
+    updateConnectionUIState();
+    return false;
+  }
+
   if (statusEl) { statusEl.textContent = 'connecting...'; statusEl.style.color = 'var(--muted)'; }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 6500);
+
   try {
     if (connSettings.apiType === 'ollama') {
-      const res = await fetch(base + '/api/tags');
-      if (!res.ok) throw new Error('bad response');
+      const res = await fetch(base + '/api/tags', { signal: controller.signal });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
       const data = await res.json();
       availableModules = (data.models || []).map(m => m.name || m.model || String(m));
     } else {
-      const res = await fetch(base + '/v1/models');
-      if (!res.ok) throw new Error('bad response');
+      const res = await fetch(base + '/v1/models', { signal: controller.signal });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
       const data = await res.json();
       availableModules = (data.data || []).map(m => m.id || String(m));
     }
+    clearTimeout(timeoutId);
     if (connSettings.modelName && !availableModules.includes(connSettings.modelName)) {
       availableModules.unshift(connSettings.modelName);
-    }
-    if (statusEl) {
-      statusEl.textContent = 'connected (' + availableModules.length + ' modules)';
-      statusEl.style.color = '#4fd87f';
     }
     connected = true;
     updateConnectionUIState();
     document.getElementById('modelBadge').textContent = connSettings.modelName ? ('model: ' + connSettings.modelName) : '';
     document.getElementById('inlineModelLabel').textContent = connSettings.modelName || 'Connected';
-  } catch (err) {
     if (statusEl) {
-      statusEl.textContent = 'connection failed';
-      statusEl.style.color = 'var(--danger)';
+      statusEl.textContent = 'connected (' + availableModules.length + ' modules)';
+      statusEl.style.color = '#4fd87f';
     }
+    return true;
+  } catch (err) {
+    clearTimeout(timeoutId);
     connected = false;
     availableModules = [];
     updateConnectionUIState();
     document.getElementById('modelBadge').textContent = '';
     document.getElementById('inlineModelLabel').textContent = 'Not connected';
+    if (statusEl) {
+      const reason = err.name === 'AbortError'
+        ? 'Timed out after 6.5s (check Tailscale VPN & OLLAMA_HOST=0.0.0.0)'
+        : ('Connection failed: ' + (err.message || 'Network/CORS blocked'));
+      statusEl.textContent = reason;
+      statusEl.style.color = 'var(--danger)';
+    }
+    return false;
   }
 }
 
@@ -1612,12 +1646,20 @@ function renderConnectionPanel() {
     }
   });
 
-  document.getElementById('connConnectBtn').addEventListener('click', async () => {
+  const connectBtn = document.getElementById('connConnectBtn');
+  connectBtn.addEventListener('click', async () => {
+    connectBtn.disabled = true;
+    connectBtn.textContent = 'Connecting...';
     connSettings.baseUrl = document.getElementById('connBaseUrl').value.trim();
     connSettings.apiType = document.getElementById('connApiType').value;
     connSettings.modelName = modelSelect.value === '__custom__' ? customInput.value.trim() : modelSelect.value;
-    await testConnection(document.getElementById('connStatusModal'));
-    renderConnectionPanel();
+    const ok = await testConnection(document.getElementById('connStatusModal'));
+    connectBtn.disabled = false;
+    connectBtn.textContent = 'Connect';
+    if (ok) {
+      renderConnectionPanel();
+      setTimeout(() => settingsOverlay.classList.remove('open'), 450);
+    }
   });
 }
 
