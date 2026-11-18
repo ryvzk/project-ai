@@ -877,6 +877,24 @@ const supabaseClient = createNativeSupabaseClient(SUPABASE_URL, SUPABASE_PUBLISH
 const MEMORY_KEY = 'local_ai_trainer_memory_v3';
 const SEARCH_KEY = 'local_ai_search_v4';
 const APP_VERSION = '1.12';
+
+function isVisionCapableModel(name) {
+  const lower = (name || '').toLowerCase();
+  return /vl|llava|bakllava|moondream|minicpm-v|vision|gemma3|pixtral|granite3\.2-vision|llama3\.2-vision|qwen2\.5vl|qwen3-vl/.test(lower);
+}
+
+function getBestVisionModel(preferredModel) {
+  if (isVisionCapableModel(preferredModel)) return preferredModel;
+  const visionPriority = ['gemma3:12b', 'qwen2.5vl:7b', 'huihui_ai/qwen2.5-vl-abliterated:7b', 'llava:latest', 'llava'];
+  for (const candidate of visionPriority) {
+    const match = availableModules.find(m => m.toLowerCase() === candidate.toLowerCase() || m.toLowerCase().startsWith(candidate.split(':')[0].toLowerCase()));
+    if (match) return match;
+  }
+  const anyPulledVision = availableModules.find(m => isVisionCapableModel(m));
+  if (anyPulledVision) return anyPulledVision;
+  return 'gemma3:12b';
+}
+
 const COMMON_MODEL_PRESETS = [
   "qwen3:8b",
   "gemma3:12b",
@@ -1783,11 +1801,16 @@ async function handleSend() {
 
   document.getElementById('sendBtn').disabled = true;
   const usingSearch = webSearchActive;
-  chat.messages.push({ role: 'assistant', content: usingSearch ? 'searching...' : 'thinking...', pending: true });
-  renderChat();
+  const rawHistoryPreview = chat.messages.filter(m => !m.pending).slice(-10);
+  const hasImagesInContext = rawHistoryPreview.some(m => (m.attachments || []).some(a => a.type === 'image'));
 
   const base = (connSettings.baseUrl || '').replace(/\/$/, '');
-  const model = connSettings.modelName || 'qwen3:8b';
+  const selectedModel = connSettings.modelName || 'qwen3:8b';
+  const model = hasImagesInContext ? getBestVisionModel(selectedModel) : selectedModel;
+
+  const initialStatus = hasImagesInContext ? 'analyzing image...' : (usingSearch ? 'searching...' : 'thinking...');
+  chat.messages.push({ role: 'assistant', content: initialStatus, pending: true });
+  renderChat();
 
   try {
     let searchResultsUsed = null;
@@ -1807,7 +1830,7 @@ async function handleSend() {
       } catch (searchErr) {
         systemPrompts.push('Note: web search failed (' + searchErr.message + ').');
       }
-      chat.messages[chat.messages.length - 1].content = 'thinking...';
+      chat.messages[chat.messages.length - 1].content = hasImagesInContext ? 'analyzing image...' : 'thinking...';
       renderChat();
     }
 
