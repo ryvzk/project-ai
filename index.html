@@ -1372,16 +1372,6 @@ async function testConnection(statusEl) {
   }
   const base = rawBase.replace(/\/$/, '');
 
-  if (window.location.protocol === 'https:' && base.startsWith('http://') && !/^http:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/i.test(base)) {
-    if (statusEl) {
-      statusEl.textContent = 'Blocked: Mobile browsers block HTTP requests from HTTPS pages (Mixed Content).';
-      statusEl.style.color = 'var(--danger)';
-    }
-    connected = false;
-    updateConnectionUIState();
-    return false;
-  }
-
   if (statusEl) { statusEl.textContent = 'connecting...'; statusEl.style.color = 'var(--muted)'; }
 
   const controller = new AbortController();
@@ -1420,9 +1410,12 @@ async function testConnection(statusEl) {
     document.getElementById('modelBadge').textContent = '';
     document.getElementById('inlineModelLabel').textContent = 'Not connected';
     if (statusEl) {
+      const isMixedContent = window.location.protocol === 'https:' && base.startsWith('http://') && !/^http:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/i.test(base);
       const reason = err.name === 'AbortError'
         ? 'Timed out after 6.5s (check Tailscale VPN & OLLAMA_HOST=0.0.0.0)'
-        : ('Connection failed: ' + (err.message || 'Network/CORS blocked'));
+        : (isMixedContent
+            ? 'Blocked by browser (Mixed Content): Allow Insecure Content in Site Settings or use an HTTPS URL.'
+            : ('Connection failed: ' + (err.message || 'Network/CORS blocked')));
       statusEl.textContent = reason;
       statusEl.style.color = 'var(--danger)';
     }
