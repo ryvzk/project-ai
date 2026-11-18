@@ -421,6 +421,21 @@
     background: var(--accent); border-color: var(--accent); color: white;
     box-shadow: 0 4px 12px rgba(79, 107, 240, 0.35);
   }
+  #deepThinkBtn {
+    background: transparent; border: 1px solid transparent; color: var(--muted);
+    width: 34px; height: 34px; border-radius: 50%; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  #deepThinkBtn:hover { color: var(--text); background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.1); }
+  #deepThinkBtn.active {
+    background: #7e52ff; border-color: #7e52ff; color: white;
+    box-shadow: 0 4px 12px rgba(126, 82, 255, 0.4);
+  }
+  #sendBtn.generating {
+    background: var(--danger);
+    color: white;
+  }
   .search-sources {
     display: flex; flex-direction: column; gap: 6px; margin-top: 10px;
     padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.08);
@@ -627,6 +642,12 @@
               <path d="M2 12h20"></path>
             </svg>
           </button>
+          <button id="deepThinkBtn" title="Toggle Deep Thinking (Reasoning)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2a7 7 0 0 1 7 7c0 2.38-1.19 4.47-3 5.74V17a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 0 1 7-7z"></path>
+              <path d="M9 21h6"></path>
+            </svg>
+          </button>
         </div>
         <div id="inputRightControls">
           <span id="inlineModelLabel">Not connected</span>
@@ -816,6 +837,8 @@ let trainerMemory = [];
 let searchQuery = '';
 let webSearchSettings = { provider: 'tavily', tavilyApiKey: '', braveApiKey: '', enabledByDefault: false };
 let webSearchActive = false;
+let deepThinkActive = false;
+let currentAbortController = null;
 let connSettings = { baseUrl: '', apiType: 'ollama', modelName: '' };
 
 function usernameEmail(username) { return username.trim().toLowerCase() + "@zsfxcvoxmhespcktjuow.supabase.co"; }
@@ -938,6 +961,16 @@ async function submitAuth(mode) {
 }
 
 async function handleSignOut() {
+  if (currentAbortController) {
+    currentAbortController.abort();
+    currentAbortController = null;
+  }
+  connected = false;
+  availableModules = [];
+  connSettings = { baseUrl: '', apiType: 'ollama', modelName: '' };
+  document.getElementById('modelBadge').textContent = '';
+  document.getElementById('inlineModelLabel').textContent = 'Not connected';
+  updateConnectionUIState();
   if (supabaseClient) await supabaseClient.auth.signOut();
   signedInProfile = null;
   currentUserId = null;
@@ -1041,7 +1074,12 @@ function renderSidebar() {
     const item = document.createElement('div');
     item.className = 'chat-item' + (chat.id === activeChatId ? ' active' : '');
     item.innerHTML = `<span class="title">${escapeHtml(chat.title)}</span><button class="icon-btn rename" title="Rename">✎</button><button class="icon-btn delete" title="Delete">🗑</button>`;
-    item.querySelector('.title').addEventListener('click', () => { activeChatId = chat.id; renderSidebar(); renderChat(); });
+    item.querySelector('.title').addEventListener('click', () => {
+      activeChatId = chat.id;
+      if (window.innerWidth <= 768) document.getElementById('sidebar').classList.add('collapsed');
+      renderSidebar();
+      renderChat();
+    });
     item.querySelector('.rename').addEventListener('click', (e) => { e.stopPropagation(); startRename(item, chat); });
     item.querySelector('.delete').addEventListener('click', (e) => { e.stopPropagation(); if (confirm('Delete "' + chat.title + '"?')) deleteChat(chat.id); });
     listEl.appendChild(item);
@@ -1473,10 +1511,28 @@ function renderConnectionPanel() {
         <option value="openai" ${connSettings.apiType === 'openai' ? 'selected' : ''}>LM Studio / OpenAI-compatible</option>
       </select>
     </div>
-    <div class="settings-row"><label>Model Name (use a vision model like llava or qwen2.5vl for images)</label><input id="connModelName" placeholder="e.g. huihui_ai/qwen3-abliterated:8b" value="${escapeHtml(connSettings.modelName)}"></div>
+    <div class="settings-row">
+      <label>Quick Model Preset</label>
+      <select id="connModelPreset">
+        <option value="">-- Select a model preset --</option>
+        <option value="qwen3:8b" ${connSettings.modelName === 'qwen3:8b' ? 'selected' : ''}>qwen3:8b</option>
+        <option value="gemma3:12b" ${connSettings.modelName === 'gemma3:12b' ? 'selected' : ''}>gemma3:12b</option>
+        <option value="huihui_ai/qwen3-abliterated:8b" ${connSettings.modelName === 'huihui_ai/qwen3-abliterated:8b' ? 'selected' : ''}>huihui_ai/qwen3-abliterated:8b</option>
+        <option value="huihui_ai/deepseek-r1-abliterated:8b" ${connSettings.modelName === 'huihui_ai/deepseek-r1-abliterated:8b' ? 'selected' : ''}>huihui_ai/deepseek-r1-abliterated:8b</option>
+      </select>
+    </div>
+    <div class="settings-row"><label>Model Name (or custom pulled tag)</label><input id="connModelName" placeholder="e.g. huihui_ai/qwen3-abliterated:8b" value="${escapeHtml(connSettings.modelName)}"></div>
     <button class="settings-btn" id="connConnectBtn">Connect</button>
     <div id="connStatusModal" style="margin-top:10px; font-size:12.5px; color:${connected ? '#4fd87f' : 'var(--muted)'};">${connected ? 'connected' : 'not connected'}</div>
   `;
+  const presetSelect = document.getElementById('connModelPreset');
+  if (presetSelect) {
+    presetSelect.addEventListener('change', (e) => {
+      if (e.target.value) {
+        document.getElementById('connModelName').value = e.target.value;
+      }
+    });
+  }
   document.getElementById('connConnectBtn').addEventListener('click', async () => {
     connSettings.baseUrl = document.getElementById('connBaseUrl').value.trim();
     connSettings.apiType = document.getElementById('connApiType').value;
@@ -1663,9 +1719,17 @@ async function handleSend() {
   renderSidebar();
   renderChat();
 
-  document.getElementById('sendBtn').disabled = true;
+  const sendBtn = document.getElementById('sendBtn');
+  currentAbortController = new AbortController();
+  sendBtn.textContent = '■';
+  sendBtn.classList.add('generating');
+  sendBtn.title = 'Stop generating';
+  sendBtn.disabled = false;
+
   const usingSearch = webSearchActive;
-  chat.messages.push({ role: 'assistant', content: usingSearch ? 'searching...' : 'thinking...', pending: true });
+  const hasImages = attachmentsForMsg.some(a => a.type === 'image');
+  const initialStatus = usingSearch ? 'searching...' : (hasImages ? 'analyzing image...' : 'thinking...');
+  chat.messages.push({ role: 'assistant', content: initialStatus, pending: true });
   renderChat();
 
   const base = (connSettings.baseUrl || '').replace(/\/$/, '');
@@ -1676,6 +1740,9 @@ async function handleSend() {
     let systemPrompts = [];
     if (trainerMemory.length > 0) {
       systemPrompts.push('Standing instructions:\n' + trainerMemory.join('\n'));
+    }
+    if (deepThinkActive) {
+      systemPrompts.push('Deep Thinking Mode Enabled: Reason through the problem thoroughly, examine edge cases, and verify every step carefully before giving your final answer.');
     }
 
     if (usingSearch && promptText) {
@@ -1689,7 +1756,7 @@ async function handleSend() {
       } catch (searchErr) {
         systemPrompts.push('Note: web search failed (' + searchErr.message + ').');
       }
-      chat.messages[chat.messages.length - 1].content = 'thinking...';
+      chat.messages[chat.messages.length - 1].content = hasImages ? 'analyzing image...' : 'thinking...';
       renderChat();
     }
 
@@ -1718,7 +1785,8 @@ async function handleSend() {
       const res = await fetch(base + '/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model, messages: ollamaMessages, stream: false })
+        signal: currentAbortController.signal,
+        body: JSON.stringify({ model, messages: ollamaMessages, stream: false, think: deepThinkActive })
       });
       if (!res.ok) {
         const errBody = await res.text().catch(() => '');
@@ -1750,6 +1818,7 @@ async function handleSend() {
       const res = await fetch(base + '/v1/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: currentAbortController.signal,
         body: JSON.stringify({ model, messages: openaiMessages })
       });
       if (!res.ok) throw new Error('request failed: ' + res.status);
@@ -1759,13 +1828,22 @@ async function handleSend() {
 
     chat.messages[chat.messages.length - 1] = { role: 'assistant', content: replyText, sources: searchResultsUsed };
   } catch (err) {
-    chat.messages[chat.messages.length - 1] = { role: 'assistant', content: 'Error: ' + err.message };
+    if (err.name === 'AbortError') {
+      chat.messages[chat.messages.length - 1] = { role: 'assistant', content: '*Generation stopped.*' };
+    } else {
+      chat.messages[chat.messages.length - 1] = { role: 'assistant', content: 'Error: ' + err.message };
+    }
+  } finally {
+    currentAbortController = null;
+    sendBtn.textContent = '↑';
+    sendBtn.classList.remove('generating');
+    sendBtn.title = 'Send';
+    sendBtn.disabled = false;
   }
 
   saveChats();
   renderSidebar();
   renderChat();
-  document.getElementById('sendBtn').disabled = false;
   input.focus();
 }
 
@@ -1784,6 +1862,13 @@ function initApp() {
     webSearchActive = !webSearchActive;
     document.getElementById('webSearchBtn').classList.toggle('active', webSearchActive);
   });
+  const deepThinkBtn = document.getElementById('deepThinkBtn');
+  if (deepThinkBtn) {
+    deepThinkBtn.addEventListener('click', () => {
+      deepThinkActive = !deepThinkActive;
+      deepThinkBtn.classList.toggle('active', deepThinkActive);
+    });
+  }
 
   document.getElementById('attachBtn').addEventListener('click', () => document.getElementById('fileInput').click());
   document.getElementById('fileInput').addEventListener('change', async (e) => {
@@ -1813,7 +1898,13 @@ function initApp() {
     this.style.height = 'auto';
     this.style.height = Math.min(this.scrollHeight, 160) + 'px';
   });
-  document.getElementById('sendBtn').addEventListener('click', handleSend);
+  document.getElementById('sendBtn').addEventListener('click', () => {
+    if (currentAbortController) {
+      currentAbortController.abort();
+      return;
+    }
+    handleSend();
+  });
   userInputEl.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -1898,6 +1989,7 @@ function initApp() {
       }
     }
   });
+  if (window.innerWidth <= 768 && sidebarEl) sidebarEl.classList.add('collapsed');
   if (toggleSidebarBtn) toggleSidebarBtn.addEventListener('click', toggleSidebar);
   if (closeSidebarBtn) closeSidebarBtn.addEventListener('click', toggleSidebar);
 
