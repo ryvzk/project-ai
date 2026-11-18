@@ -20,7 +20,6 @@
     --border: #24252b;
     --border-glow: rgba(79, 107, 240, 0.35);
     --danger: #e0556a;
-    --success: #4fd87f;
   }
   * { box-sizing: border-box; }
   body {
@@ -42,7 +41,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.6s ease;
+    transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.7s ease;
   }
   #splashScreen.fade-out {
     opacity: 0;
@@ -62,7 +61,7 @@
   }
 
   /* SIDEBAR */
-  #sidebar {
+    #sidebar {
     width: 270px;
     background: var(--sidebar);
     border-right: 1px solid var(--border);
@@ -70,8 +69,16 @@
     flex-direction: column;
     flex-shrink: 0;
     z-index: 2;
+    transition: width 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  #sidebar.collapsed {
+    width: 0;
+    min-width: 0;
+    overflow: hidden;
+    border-right: none;
   }
   #sidebar-header { padding: 18px 16px 12px; }
+  .sidebar-header-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
   #homeNavBtn {
     width: 100%;
     background: transparent;
@@ -172,7 +179,7 @@
   }
   #briefingStatusBadge {
     font-size: 11px; color: var(--muted); white-space: nowrap;
-    overflow: hidden; text-overflow: ellipsis; max-width: 175px;
+    overflow: hidden; text-overflow: ellipsis; max-width: 170px;
   }
   #settingsGearBtn {
     background: none; border: 1px solid var(--border); color: var(--muted);
@@ -269,6 +276,7 @@
     box-shadow: 0 12px 34px rgba(109, 74, 255, 0.25);
     animation: heroPulse 4s ease-in-out infinite alternate;
   }
+  .hero-icon-wrapper img { width: 100%; height: 100%; object-fit: cover; }
   @keyframes heroPulse {
     0% { transform: translateY(0); box-shadow: 0 10px 30px rgba(109, 74, 255, 0.2); }
     100% { transform: translateY(-4px); box-shadow: 0 16px 40px rgba(109, 74, 255, 0.35); }
@@ -320,13 +328,15 @@
   .ai .msg hr { border: none; border-top: 1px solid rgba(255,255,255,0.1); margin: 12px 0; }
   .ai .msg a { color: #8ab4f8; text-decoration: none; }
   .ai .msg a:hover { text-decoration: underline; }
+  .ai .msg table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13.5px; }
+  .ai .msg th, .ai .msg td { border: 1px solid rgba(255,255,255,0.12); padding: 8px 12px; text-align: left; }
+  .ai .msg th { background: rgba(255,255,255,0.06); font-weight: 600; color: #ffffff; }
   .msg code { background: rgba(0,0,0,0.4); padding: 2px 6px; border-radius: 5px; font-family: "SF Mono", Menlo, monospace; font-size: 13px; }
   .msg pre { background: rgba(0,0,0,0.5); padding: 12px 14px; border-radius: 10px; overflow-x: auto; font-family: "SF Mono", Menlo, monospace; font-size: 13px; margin: 10px 0; border: 1px solid rgba(255,255,255,0.06); }
   .msg pre code { background: none; padding: 0; }
   .attachments { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
   .attachment-thumb { width: 96px; height: 96px; border-radius: 10px; object-fit: cover; border: 1px solid var(--border); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
   .attachment-file { font-size: 12px; background: var(--panel); border: 1px solid var(--border); padding: 6px 10px; border-radius: 8px; color: var(--muted); }
-  .vision-tag { font-size: 11px; color: #a3b2f8; background: rgba(79, 107, 240, 0.14); border: 1px solid rgba(79, 107, 240, 0.25); padding: 2px 8px; border-radius: 6px; margin-bottom: 6px; display: inline-block; }
 
   /* UNIFIED INPUT BAR */
   #inputBar {
@@ -396,16 +406,6 @@
     transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   }
   #sendBtn:hover:not(:disabled) { transform: scale(1.08); background: #ffffff; box-shadow: 0 6px 16px rgba(255,255,255,0.25); }
-  #sendBtn.is-stopping {
-    background: var(--danger);
-    color: #ffffff;
-    box-shadow: 0 4px 14px rgba(224, 85, 106, 0.45);
-  }
-  #sendBtn.is-stopping:hover {
-    background: #f06479;
-    transform: scale(1.08);
-    box-shadow: 0 6px 18px rgba(224, 85, 106, 0.6);
-  }
   #sendBtn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; box-shadow: none; }
   #fileInput { display: none; }
 
@@ -438,7 +438,7 @@
   }
   #settingsOverlay.open { display: flex; }
   #settingsModal {
-    background: var(--panel); width: 820px; max-width: 94vw; height: 600px; max-height: 90vh;
+    background: var(--panel); width: 780px; max-width: 92vw; height: 560px; max-height: 88vh;
     border-radius: 18px; display: flex; overflow: hidden; border: 1px solid var(--border);
     box-shadow: 0 24px 80px rgba(0,0,0,0.6); position: relative;
   }
@@ -456,7 +456,6 @@
     padding: 10px 12px; border-radius: 8px; font-size: 13.5px; font-family: inherit;
   }
   .settings-row input:focus, .settings-row select:focus, .settings-row textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--border-glow); }
-  .settings-row input:disabled { opacity: 0.55; cursor: not-allowed; background: rgba(13, 14, 17, 0.5); }
   .settings-row textarea { resize: vertical; min-height: 80px; }
   .settings-btn {
     background: var(--accent); color: white; border: none; padding: 10px 18px;
@@ -479,8 +478,7 @@
   #modulesDrawer { display: none; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; margin-top: 10px; }
   #modulesDrawer.open { display: block; }
   .module-chip { display: flex; justify-content: space-between; align-items: center; padding: 7px 8px; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,0.04); }
-  .module-chip .mod-tag { font-size: 11px; color: var(--success); background: rgba(79, 216, 127, 0.12); padding: 2px 8px; border-radius: 4px; }
-  .module-chip .mod-tag.vision { color: #c4b5fd; background: rgba(139, 92, 246, 0.18); }
+  .module-chip .mod-tag { font-size: 11px; color: #4fd87f; background: rgba(79, 216, 127, 0.12); padding: 2px 8px; border-radius: 4px; }
   .memory-item { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; font-size: 13px; }
   .memory-item .remove-mem { cursor: pointer; color: var(--danger); background: none; border: none; font-size: 13px; }
   .admin-metrics-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 18px; }
@@ -488,23 +486,7 @@
   .admin-metric-card .metric-val { font-size: 20px; font-weight: 700; color: var(--text); }
   .admin-metric-card .metric-lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; margin-top: 3px; }
 
-  /* UPDATES / CHANGELOG CARDS */
-  .archive-card {
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 12px 14px;
-    margin-bottom: 10px;
-    transition: border-color 0.15s;
-  }
-  .archive-card:hover { border-color: rgba(79, 107, 240, 0.35); }
-  .archive-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 5px; }
-  .archive-card-title { font-size: 13.5px; font-weight: 600; color: var(--text); }
-  .archive-card-meta { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
-  .archive-card-snippet { font-size: 12.5px; color: #c7cad3; line-height: 1.5; }
-  .archive-badge { font-size: 10.5px; padding: 2px 7px; border-radius: 4px; background: rgba(79, 107, 240, 0.14); color: #a3b2f8; }
-
-  /* OPAQUE AUTH GATE */
+  /* OPAQUE AUTH GATE SO LOGGED OUT USERS CANNOT SEE PAST CHATS */
   #authGate {
     position: fixed; inset: 0; z-index: 20000; display: flex; align-items: center; justify-content: center; padding: 20px;
     background: #090a0c;
@@ -544,7 +526,7 @@
 
 <div id="authGate">
   <div id="authCard">
-    <h1>Welcome to PJAI</h1>
+    <h1>Welcome to Project AI</h1>
     <p>Sign in with your username or email, or create a new account.</p>
     <input id="authUsername" autocomplete="username" placeholder="Username or Email" maxlength="100">
     <input id="authEmail" type="email" autocomplete="email" placeholder="Email (optional)" style="display:none;">
@@ -563,6 +545,10 @@
 
 <div id="sidebar">
   <div id="sidebar-header">
+    <div class="sidebar-header-top">
+      <span style="font-size:11.5px; text-transform:uppercase; letter-spacing:0.8px; color:var(--muted); font-weight:600;">Navigation</span>
+      <button id="closeSidebarBtn" title="Close Sidebar" style="background:none; border:none; color:var(--muted); cursor:pointer; font-size:16px; padding:2px 6px; border-radius:4px;">✕</button>
+    </div>
     <button id="homeNavBtn" class="active">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
@@ -589,6 +575,7 @@
 <div id="main">
   <div id="ambientGlow"></div>
   <div id="topbar">
+    <button id="toggleSidebarBtn" title="Toggle Sidebar" style="background:transparent; border:1px solid var(--border); color:var(--muted); width:32px; height:32px; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:14px;">☰</button>
     <span id="chatTitleDisplay"></span>
     <span id="modelBadge"></span>
     <span id="accountChip"></span>
@@ -616,7 +603,7 @@
         </div>
         <div id="inputRightControls">
           <span id="inlineModelLabel">Not connected</span>
-          <button id="sendBtn" disabled title="Send message">↑</button>
+          <button id="sendBtn" disabled>↑</button>
         </div>
       </div>
     </div>
@@ -633,7 +620,6 @@
       <div class="settings-nav-item" data-panel="trainer">Trainer</div>
       <div class="settings-nav-item" data-panel="connection">Connection</div>
       <div class="settings-nav-item" data-panel="search">Search</div>
-      <div class="settings-nav-item" data-panel="updates">Updates</div>
       <div class="settings-nav-item" data-panel="admin" id="adminNavItem" style="display:none;">Admin</div>
     </div>
     <div id="settingsContent"></div>
@@ -641,6 +627,7 @@
 </div>
 
 <script>
+// Always dismiss splash screen quickly so it can never block clicks
 setTimeout(() => {
   const s = document.getElementById('splashScreen');
   if (s) s.classList.add('fade-out');
@@ -649,7 +636,7 @@ setTimeout(() => {
 const SUPABASE_URL = "https://zsfxcvoxmhespcktjuow.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_hsEa-hsoHGJMRwZNYItNxg_70T0z3an";
 
-// Zero-dependency native Supabase Auth & PostgREST client
+// Zero-dependency native Supabase Auth & PostgREST client (supports sb_publishable_ keys & JWT access tokens)
 function createNativeSupabaseClient(url, anonKey) {
   let currentSession = null;
 
@@ -721,43 +708,28 @@ function createNativeSupabaseClient(url, anonKey) {
     let selectCols = '*';
     let orderCol = null;
     let orderAsc = true;
-    let rangeStart = null;
-    let rangeEnd = null;
     let isSingle = false;
     let method = 'GET';
-    let payloadBody = null;
-    let extraPrefer = [];
+    let patchBody = null;
 
     const builder = {
       select(cols = '*') { selectCols = cols; return builder; },
       eq(col, val) { filters.push(`${encodeURIComponent(col)}=eq.${encodeURIComponent(val)}`); return builder; },
       order(col, opts = {}) { orderCol = col; orderAsc = opts.ascending !== false; return builder; },
-      range(start, end) { rangeStart = start; rangeEnd = end; return builder; },
       single() { isSingle = true; return builder; },
-      update(vals) { method = 'PATCH'; payloadBody = vals; extraPrefer.push('return=representation'); return builder; },
-      delete() { method = 'DELETE'; extraPrefer.push('return=representation'); return builder; },
-      upsert(rows, opts = {}) {
-        method = 'POST';
-        payloadBody = rows;
-        extraPrefer.push(opts.ignoreDuplicates ? 'resolution=ignore-duplicates' : 'resolution=merge-duplicates');
-        return builder;
-      },
-      async then(resolve) {
+      update(vals) { method = 'PATCH'; patchBody = vals; return builder; },
+      async then(resolve, reject) {
         try {
           const params = [];
-          if (selectCols && method === 'GET') params.push('select=' + encodeURIComponent(selectCols));
-          if (selectCols && method === 'PATCH') params.push('select=' + encodeURIComponent(selectCols));
+          if (selectCols) params.push('select=' + encodeURIComponent(selectCols));
           filters.forEach(f => params.push(f));
           if (orderCol) params.push(`order=${encodeURIComponent(orderCol)}.${orderAsc ? 'asc' : 'desc'}`);
           const qs = params.length ? '?' + params.join('&') : '';
-          const customHeaders = {};
-          if (extraPrefer.length) customHeaders['Prefer'] = extraPrefer.join(',');
-          if (rangeStart !== null && rangeEnd !== null) customHeaders['Range'] = `${rangeStart}-${rangeEnd}`;
-
+          const reqHeaders = headers(method === 'PATCH' ? { 'Prefer': 'return=representation' } : {});
           const res = await fetch(`${url}/rest/v1/${table}${qs}`, {
             method,
-            headers: headers(customHeaders),
-            body: payloadBody ? JSON.stringify(payloadBody) : undefined
+            headers: reqHeaders,
+            body: patchBody ? JSON.stringify(patchBody) : undefined
           });
           const text = await res.text();
           let data = text ? JSON.parse(text) : null;
@@ -801,21 +773,9 @@ function createNativeSupabaseClient(url, anonKey) {
 }
 
 const supabaseClient = createNativeSupabaseClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
-
 const MEMORY_KEY = 'local_ai_trainer_memory_v3';
 const SEARCH_KEY = 'local_ai_search_v4';
-const BRIEFING_KEY = 'local_ai_daily_briefing_v1';
-const KNOWLEDGE_KEY = 'local_ai_shared_knowledge_v1';
 const APP_VERSION = '1.12';
-
-const COMMON_MODEL_PRESETS = [
-  { value: 'huihui_ai/qwen3-abliterated:8b', label: 'huihui_ai/qwen3-abliterated:8b' },
-  { value: 'huihui_ai/qwen3-abliterated:14b', label: 'huihui_ai/qwen3-abliterated:14b' },
-  { value: 'huihui_ai/qwen2.5-vl-abliterated:7b', label: 'huihui_ai/qwen2.5-vl-abliterated:7b' },
-  { value: 'qwen3:8b', label: 'qwen3:8b' },
-  { value: 'qwen2.5vl:7b', label: 'qwen2.5vl:7b' },
-  { value: 'gemma3:12b', label: 'gemma3:12b' }
-];
 
 let signedInProfile = null;
 let currentUserId = null;
@@ -827,26 +787,9 @@ let availableModules = [];
 let pendingAttachments = [];
 let trainerMemory = [];
 let searchQuery = '';
-let webSearchSettings = {
-  provider: 'tavily',
-  tavilyApiKey: '',
-  braveApiKey: '',
-  enabledByDefault: false
-};
-let dailyBriefing = { date: '', summary: '', weekKey: '' };
-let sharedKnowledge = [];
+let webSearchSettings = { provider: 'tavily', tavilyApiKey: '', braveApiKey: '', enabledByDefault: false };
 let webSearchActive = false;
-let knowledgeBackfillRunning = false;
-let currentAbortController = null;
-let isGenerating = false;
-
-let connSettings = {
-  baseUrl: '',
-  apiType: 'ollama',
-  modelName: 'huihui_ai/qwen3-abliterated:8b',
-  visionModelName: '',
-  enableThinking: false
-};
+let connSettings = { baseUrl: '', apiType: 'ollama', modelName: '', knowledgeCutoff: '(-inf - 2026)' };
 
 function usernameEmail(username) { return username.trim().toLowerCase() + "@zsfxcvoxmhespcktjuow.supabase.co"; }
 function validUsername(username) { return /^[a-zA-Z0-9_]{3,24}$/.test(username); }
@@ -860,24 +803,8 @@ function authMessage(message, isError = false) {
   }
 }
 
-// Vision model detection helper
-function isVisionCapableModelName(name) {
-  const lower = (name || '').toLowerCase();
-  return /(vl|llava|vision|minicpm-v|gemma3|moondream|bakllava|cogvlm|internvl|pixtral)/.test(lower);
-}
-
-function getEffectiveVisionModel() {
-  if (connSettings.visionModelName && connSettings.visionModelName.trim()) {
-    return connSettings.visionModelName.trim();
-  }
-  if (isVisionCapableModelName(connSettings.modelName)) {
-    return connSettings.modelName;
-  }
-  const detected = availableModules.find(m => isVisionCapableModelName(m));
-  return detected || '';
-}
-
 async function fetchProfileSafe(userId) {
+  // Try selecting suspended_until too; fallback if column doesn't exist yet
   let res = await supabaseClient.from("profiles").select("username, email, role, suspended_until").eq("id", userId).single();
   if (res.error && String(res.error.message || '').includes('suspended_until')) {
     res = await supabaseClient.from("profiles").select("username, email, role").eq("id", userId).single();
@@ -887,6 +814,10 @@ async function fetchProfileSafe(userId) {
 }
 
 async function loadSignedInProfile() {
+  if (!supabaseClient) {
+    authMessage("Authentication library failed to load. Refresh the page.", true);
+    return;
+  }
   const { data: { user } } = await supabaseClient.auth.getUser();
   if (!user) {
     signedInProfile = null;
@@ -924,17 +855,13 @@ async function loadSignedInProfile() {
   renderSidebar();
   renderChat();
   updateConnectionUIState();
-
-  try {
-    await loadSharedKnowledgeFromSupabase();
-    await syncLocalKnowledgeToSupabase();
-  } catch (e) {}
-
-  // Automatically sync major headlines & cybersecurity news on login
-  refreshDailyBriefing(false).catch(() => {});
 }
 
 async function submitAuth(mode) {
+  if (!supabaseClient) {
+    authMessage("Supabase client not initialized. Check your internet connection and refresh.", true);
+    return;
+  }
   const userField = document.getElementById("authUsername");
   const emailField = document.getElementById("authEmail");
   const password = document.getElementById("authPassword").value;
@@ -984,37 +911,13 @@ async function submitAuth(mode) {
 }
 
 async function handleSignOut() {
-  if (currentAbortController) {
-    try { currentAbortController.abort(); } catch (e) {}
-    currentAbortController = null;
-  }
-  isGenerating = false;
-  setSendButtonGenerating(false);
-
-  await supabaseClient.auth.signOut();
+  if (supabaseClient) await supabaseClient.auth.signOut();
   signedInProfile = null;
   currentUserId = null;
   chats = [];
   activeChatId = null;
   pendingAttachments = [];
   signUpFieldRevealed = false;
-
-  // Sever connection & clear all configured connection settings on logout
-  connSettings = {
-    baseUrl: '',
-    apiType: 'ollama',
-    modelName: '',
-    visionModelName: '',
-    enableThinking: false
-  };
-  connected = false;
-  availableModules = [];
-  const modelBadge = document.getElementById('modelBadge');
-  if (modelBadge) modelBadge.textContent = '';
-  const inlineLabel = document.getElementById('inlineModelLabel');
-  if (inlineLabel) inlineLabel.textContent = 'Not connected';
-  updateConnectionUIState();
-
   document.getElementById('settingsOverlay').classList.remove('open');
   document.getElementById('chatList').innerHTML = '';
   document.getElementById('chat').innerHTML = '';
@@ -1049,271 +952,13 @@ function saveMemory() { localStorage.setItem(MEMORY_KEY, JSON.stringify(trainerM
 function loadSearchSettings() {
   try {
     const raw = localStorage.getItem(SEARCH_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      webSearchSettings.provider = parsed.provider || 'tavily';
-      webSearchSettings.tavilyApiKey = parsed.tavilyApiKey || '';
-      webSearchSettings.braveApiKey = parsed.braveApiKey || '';
-      webSearchSettings.enabledByDefault = !!parsed.enabledByDefault;
-    }
+    if (raw) webSearchSettings = Object.assign(webSearchSettings, JSON.parse(raw));
   } catch (e) {}
   webSearchActive = !!webSearchSettings.enabledByDefault;
   const btn = document.getElementById('webSearchBtn');
   if (btn) btn.classList.toggle('active', webSearchActive);
 }
-function saveSearchSettings() {
-  try { localStorage.setItem(SEARCH_KEY, JSON.stringify(webSearchSettings)); } catch (e) {}
-}
 
-// ---------- Shared Research Archive & Weekly Briefing ----------
-function loadSharedKnowledge() {
-  try {
-    const raw = localStorage.getItem(KNOWLEDGE_KEY);
-    sharedKnowledge = raw ? JSON.parse(raw) : [];
-    if (!Array.isArray(sharedKnowledge)) sharedKnowledge = [];
-  } catch (e) { sharedKnowledge = []; }
-}
-function saveSharedKnowledge() {
-  sharedKnowledge = sharedKnowledge.slice(-500);
-  try { localStorage.setItem(KNOWLEDGE_KEY, JSON.stringify(sharedKnowledge)); }
-  catch (e) {
-    sharedKnowledge = sharedKnowledge.slice(-250);
-    try { localStorage.setItem(KNOWLEDGE_KEY, JSON.stringify(sharedKnowledge)); } catch (_) {}
-  }
-}
-function knowledgeRowToLocal(row) {
-  return {
-    id: row.id,
-    title: row.title || "Untitled result",
-    url: row.url,
-    content: row.content || "",
-    query: row.query_text || "",
-    sourceType: row.source_type || "shared archive",
-    savedAt: row.saved_at || row.created_at || new Date().toISOString(),
-    publishedDate: row.published_date || "",
-    sourceHost: row.source_host || "",
-    sourceScore: Number(row.source_score || 0),
-    sourceLabel: row.source_label || "Unverified source",
-    verification: row.verification || "unverified"
-  };
-}
-async function loadSharedKnowledgeFromSupabase() {
-  if (!signedInProfile) return;
-  const pageSize = 500;
-  let offset = 0, remote = [];
-  while (true) {
-    const { data, error } = await supabaseClient.from("shared_knowledge")
-      .select("id,title,url,content,query_text,source_type,saved_at,published_date,source_host,source_score,source_label,verification")
-      .order("saved_at", { ascending: false }).range(offset, offset + pageSize - 1);
-    if (error) throw new Error(error.message);
-    remote.push(...(data || []).map(knowledgeRowToLocal));
-    if (!data || data.length < pageSize || remote.length >= 5000) break;
-    offset += pageSize;
-  }
-  const byUrl = new Map();
-  [...remote, ...sharedKnowledge].forEach(item => {
-    if (item && item.url) {
-      const key = item.url.split("#")[0].replace(/\/$/, "").toLowerCase();
-      if (!byUrl.has(key)) byUrl.set(key, item);
-    }
-  });
-  sharedKnowledge = Array.from(byUrl.values());
-  saveSharedKnowledge();
-}
-async function syncLocalKnowledgeToSupabase() {
-  if (!signedInProfile || !sharedKnowledge.length) return;
-  const { data: { user } } = await supabaseClient.auth.getUser();
-  if (!user) return;
-  const rows = sharedKnowledge.filter(k => k && /^https?:\/\//i.test(k.url || "")).map(k => ({
-    id: String(k.id || ("k" + Date.now() + Math.random().toString(36).slice(2, 9))),
-    title: String(k.title || "Untitled result").slice(0, 240),
-    url: String(k.url).slice(0, 2048),
-    content: String(k.content || "").slice(0, 900),
-    query_text: String(k.query || "").slice(0, 1000),
-    source_type: String(k.sourceType || "browser archive").slice(0, 80),
-    saved_at: k.savedAt || new Date().toISOString(),
-    published_date: String(k.publishedDate || "").slice(0, 100),
-    source_host: String(k.sourceHost || "").slice(0, 255),
-    source_score: Math.max(0, Math.min(100, Number(k.sourceScore || 0))),
-    source_label: String(k.sourceLabel || "Unverified source").slice(0, 80),
-    verification: String(k.verification || "unverified").slice(0, 80),
-    created_by: user.id
-  }));
-  for (let i = 0; i < rows.length; i += 100) {
-    await supabaseClient.from("shared_knowledge")
-      .upsert(rows.slice(i, i + 100), { onConflict: "url", ignoreDuplicates: true });
-  }
-}
-
-function getSourceAssessment(result) {
-  let host = '';
-  try { host = new URL(result.url).hostname.toLowerCase().replace(/^www\./, ''); } catch (e) {}
-  const highTrust = /(\.gov|\.mil|\.edu)$/.test(host) || /(^|\.)(reuters\.com|apnews\.com|bbc\.com|bbc\.co\.uk|npr\.org|cisa\.gov|fbi\.gov|justice\.gov|nist\.gov|theguardian\.com|ft\.com|wsj\.com|nytimes\.com|arstechnica\.com|bleepingcomputer\.com|therecord\.media|krebsonsecurity\.com)$/.test(host);
-  const mediumTrust = /(^|\.)(cnbc\.com|cnn\.com|abcnews\.go\.com|nbcnews\.com|cbsnews\.com|politico\.com|wired\.com|techcrunch\.com|zdnet\.com|securityweek\.com|darkreading\.com|theregister\.com)$/.test(host);
-  const hasBody = (result.content || '').trim().length >= 80;
-  const hasUrl = /^https?:\/\//i.test(result.url || '');
-  const score = Math.min(100, (highTrust ? 75 : mediumTrust ? 58 : 30) + (hasBody ? 15 : 0) + (hasUrl ? 10 : 0));
-  return { host, score, label: highTrust ? 'Established source' : mediumTrust ? 'Recognized publisher' : 'Unverified source', status: highTrust || mediumTrust ? 'needs corroboration' : 'unverified' };
-}
-
-function saveSearchResultsToKnowledge(results, query, sourceType = 'manual search') {
-  const now = new Date().toISOString();
-  let added = 0;
-  (results || []).forEach(r => {
-    if (!r || !r.url || !/^https?:\/\//i.test(r.url)) return;
-    const key = r.url.split('#')[0].replace(/\/$/, '').toLowerCase();
-    const assessment = getSourceAssessment(r);
-    const existing = sharedKnowledge.find(k => k.url && k.url.split('#')[0].replace(/\/$/, '').toLowerCase() === key);
-    const item = {
-      id: existing ? existing.id : 'k' + Date.now() + Math.random().toString(36).slice(2, 7),
-      title: (r.title || 'Untitled result').slice(0, 240),
-      url: r.url,
-      content: (r.content || '').slice(0, 900),
-      query,
-      sourceType,
-      savedAt: now,
-      publishedDate: r.publishedDate || '',
-      sourceHost: assessment.host,
-      sourceScore: assessment.score,
-      sourceLabel: assessment.label,
-      verification: assessment.status
-    };
-    if (existing) Object.assign(existing, item); else { sharedKnowledge.push(item); added++; }
-  });
-  saveSharedKnowledge();
-  if (signedInProfile) {
-    syncLocalKnowledgeToSupabase().catch(() => {});
-  }
-  return added;
-}
-
-function retrieveSharedKnowledge(query, limit = 8) {
-  const terms = (query.toLowerCase().match(/[a-z0-9]{3,}/g) || []).filter(t => !['the','and','for','with','from','that','this','what','when','where','how','about'].includes(t));
-  if (!terms.length) return [];
-  return sharedKnowledge.map(item => {
-    const hay = `${item.title} ${item.content} ${item.query}`.toLowerCase();
-    const matches = terms.reduce((n, term) => n + (hay.includes(term) ? 1 : 0), 0);
-    return { item, score: matches + (item.sourceScore || 0) / 200 };
-  }).filter(x => x.score >= 1.5).sort((a,b) => b.score - a.score).slice(0, limit).map(x => x.item);
-}
-
-function formatKnowledgeForModel(items) {
-  if (!items.length) return '';
-  return 'SHARED RESEARCH ARCHIVE (saved from earlier searches; use only when relevant):\n' + items.map((k,i) =>
-    `[${i+1}] ${k.title}\nSource: ${k.url}\nPublished: ${k.publishedDate || 'not provided'} | Source assessment: ${k.sourceLabel}\nNotes: ${k.content}`
-  ).join('\n\n');
-}
-
-function loadDailyBriefing() {
-  try {
-    const raw = localStorage.getItem(BRIEFING_KEY);
-    if (raw) dailyBriefing = JSON.parse(raw);
-  } catch (e) {}
-  updateBriefingBadge();
-}
-function saveDailyBriefing() {
-  try { localStorage.setItem(BRIEFING_KEY, JSON.stringify(dailyBriefing)); } catch (e) {}
-  updateBriefingBadge();
-}
-function updateBriefingBadge() {
-  const badge = document.getElementById('briefingStatusBadge');
-  if (!badge) return;
-  const todayKey = new Date().toISOString().slice(0, 10);
-  if (dailyBriefing.date === todayKey && dailyBriefing.summary) {
-    badge.textContent = 'News synced (' + (dailyBriefing.weekKey || todayKey) + ')';
-  } else {
-    badge.textContent = '';
-  }
-}
-function getWeekKey(date = new Date()) {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-  const day = d.getUTCDay() || 7;
-  d.setUTCDate(d.getUTCDate() + 4 - day);
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  const week = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
-  return `${d.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
-}
-
-async function refreshDailyBriefing(force = false) {
-  const todayKey = new Date().toISOString().slice(0, 10);
-  const weekKey = getWeekKey();
-  if (!force) {
-    if (dailyBriefing.weekKey === weekKey && dailyBriefing.summary) return;
-  }
-  const hasKey = webSearchSettings.provider === 'brave' ? !!webSearchSettings.braveApiKey : !!webSearchSettings.tavilyApiKey;
-  if (!hasKey) return;
-  const badge = document.getElementById('briefingStatusBadge');
-  if (badge) badge.textContent = 'Syncing weekly news...';
-  try {
-    const topics = [
-      'major world events and top international headlines',
-      'major cybersecurity incidents data breaches ransomware vulnerabilities and threat intelligence'
-    ];
-    const all = [];
-    for (const topic of topics) {
-      const results = await runWebSearch(topic, 8, { timeRange: 'week' });
-      all.push(...results);
-      saveSearchResultsToKnowledge(results, topic, 'weekly intelligence refresh');
-    }
-    const seen = new Set();
-    const unique = all.filter(r => {
-      const k = (r.url || '').split('#')[0].toLowerCase();
-      if (!k || seen.has(k)) return false;
-      seen.add(k);
-      return true;
-    });
-    if (unique.length) {
-      const digest = unique.slice(0, 16).map(r => {
-        const a = getSourceAssessment(r);
-        return `- ${r.title}: ${(r.content || '').slice(0, 240)}\n  Source: ${r.url} (${a.label})`;
-      }).join('\n');
-      dailyBriefing = { date: todayKey, weekKey, summary: digest };
-      saveDailyBriefing();
-    }
-  } catch (e) {
-    if (badge) badge.textContent = 'Weekly sync failed';
-  }
-}
-
-async function runHistoricalBackfill(startDate, endDate, statusEl) {
-  if (knowledgeBackfillRunning) return;
-  knowledgeBackfillRunning = true;
-  const start = new Date(startDate + 'T00:00:00');
-  const end = new Date(endDate + 'T00:00:00');
-  if (isNaN(start) || isNaN(end) || start > end) {
-    if (statusEl) statusEl.textContent = 'Choose a valid date range.';
-    knowledgeBackfillRunning = false;
-    return;
-  }
-  const topics = [
-    'major world events and major news headlines',
-    'cybersecurity incidents data breaches ransomware vulnerabilities and threat intelligence'
-  ];
-  let months = 0, saved = 0;
-  try {
-    let cursor = new Date(start.getFullYear(), start.getMonth(), 1);
-    while (cursor <= end) {
-      const monthStart = new Date(Math.max(cursor.getTime(), start.getTime()));
-      const monthEnd = new Date(Math.min(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0).getTime(), end.getTime()));
-      const fmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-      for (const topic of topics) {
-        if (statusEl) statusEl.textContent = `Backfill: ${fmt(monthStart)} to ${fmt(monthEnd)} — ${topic.includes('cybersecurity') ? 'cybersecurity' : 'headlines'}...`;
-        const results = await runWebSearch(topic, 8, { startDate: fmt(monthStart), endDate: fmt(monthEnd) });
-        saved += saveSearchResultsToKnowledge(results, `${topic} (${fmt(monthStart)} to ${fmt(monthEnd)})`, 'historical backfill');
-        await syncLocalKnowledgeToSupabase();
-      }
-      months++;
-      cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
-    }
-    if (statusEl) statusEl.textContent = `Backfill finished: searched ${months} month(s); added ${saved} new source(s).`;
-  } catch (e) {
-    if (statusEl) statusEl.textContent = `Backfill paused: ${e.message}`;
-  } finally {
-    knowledgeBackfillRunning = false;
-  }
-}
-
-// ---------- Chat Management ----------
 function getNextChatNumber() {
   let maxNum = 0;
   chats.forEach(c => {
@@ -1371,7 +1016,7 @@ function renderSidebar() {
     item.innerHTML = `<span class="title">${escapeHtml(chat.title)}</span><button class="icon-btn rename" title="Rename">✎</button><button class="icon-btn delete" title="Delete">🗑</button>`;
     item.querySelector('.title').addEventListener('click', () => { activeChatId = chat.id; renderSidebar(); renderChat(); });
     item.querySelector('.rename').addEventListener('click', (e) => { e.stopPropagation(); startRename(item, chat); });
-    item.querySelector('.delete').addEventListener('click', (e) => { e.stopPropagation(); deleteChat(chat.id); });
+    item.querySelector('.delete').addEventListener('click', (e) => { e.stopPropagation(); if (confirm('Delete "' + chat.title + '"?')) deleteChat(chat.id); });
     listEl.appendChild(item);
   });
 }
@@ -1460,11 +1105,7 @@ function renderChat() {
 
     const bubble = document.createElement('div');
     bubble.className = 'msg' + (m.pending ? ' pending' : '');
-    let bubbleHtml = '';
-    if (m.routedModel) {
-      bubbleHtml += `<div class="vision-tag">👁 Vision routed: ${escapeHtml(m.routedModel)}</div><br>`;
-    }
-    bubbleHtml += m.role === 'user' ? escapeHtml(m.content) : formatMessage(m.content);
+    let bubbleHtml = m.role === 'user' ? escapeHtml(m.content) : formatMessage(m.content);
     if (m.sources && m.sources.length) {
       bubbleHtml += `<div class="search-sources">` +
         m.sources.map(s => `<a href="${escapeHtml(s.url)}" target="_blank" rel="noopener">🔗 ${escapeHtml(s.title)}</a>`).join('') +
@@ -1562,41 +1203,6 @@ function isUserSuspended() {
   return new Date(signedInProfile.suspended_until) > new Date();
 }
 
-function setSendButtonGenerating(active) {
-  isGenerating = active;
-  const sendBtn = document.getElementById('sendBtn');
-  if (!sendBtn) return;
-  if (active) {
-    sendBtn.disabled = false;
-    sendBtn.classList.add('is-stopping');
-    sendBtn.textContent = '■';
-    sendBtn.title = 'Stop generating';
-  } else {
-    sendBtn.classList.remove('is-stopping');
-    sendBtn.textContent = '↑';
-    sendBtn.title = 'Send message';
-    sendBtn.disabled = !connected || isUserSuspended();
-  }
-}
-
-function stopCurrentGeneration() {
-  if (currentAbortController) {
-    try { currentAbortController.abort(); } catch (e) {}
-    currentAbortController = null;
-  }
-  const chat = getActiveChat();
-  if (chat && chat.messages.length > 0) {
-    const last = chat.messages[chat.messages.length - 1];
-    if (last && last.pending) {
-      chat.messages[chat.messages.length - 1] = { role: 'assistant', content: 'Stopped.' };
-      saveChats();
-      renderSidebar();
-      renderChat();
-    }
-  }
-  setSendButtonGenerating(false);
-}
-
 function updateConnectionUIState() {
   const overlayPrompt = document.getElementById('inputOverlayPrompt');
   const input = document.getElementById('userInput');
@@ -1615,7 +1221,7 @@ function updateConnectionUIState() {
     overlayPrompt.classList.add('hidden');
     input.disabled = false;
     input.placeholder = 'Ask anything...';
-    if (!isGenerating) sendBtn.disabled = false;
+    sendBtn.disabled = false;
   } else {
     overlayPrompt.classList.remove('hidden');
     input.value = '';
@@ -1643,22 +1249,14 @@ async function testConnection(statusEl) {
     if (connSettings.modelName && !availableModules.includes(connSettings.modelName)) {
       availableModules.unshift(connSettings.modelName);
     }
-
-    if (!connSettings.visionModelName) {
-      const detectedVision = availableModules.find(m => isVisionCapableModelName(m));
-      if (detectedVision) connSettings.visionModelName = detectedVision;
-    }
-
-    const visionNote = getEffectiveVisionModel() ? ` · vision: ${getEffectiveVisionModel()}` : '';
     if (statusEl) {
-      statusEl.textContent = `connected (${availableModules.length} modules${visionNote})`;
+      statusEl.textContent = 'connected (' + availableModules.length + ' modules)';
       statusEl.style.color = '#4fd87f';
     }
     connected = true;
     updateConnectionUIState();
     document.getElementById('modelBadge').textContent = connSettings.modelName ? ('model: ' + connSettings.modelName) : '';
     document.getElementById('inlineModelLabel').textContent = connSettings.modelName || 'Connected';
-    refreshDailyBriefing(false);
   } catch (err) {
     if (statusEl) {
       statusEl.textContent = 'connection failed';
@@ -1689,7 +1287,6 @@ function renderSettingsPanel() {
   else if (activeSettingsPanel === 'trainer') renderTrainerPanel();
   else if (activeSettingsPanel === 'connection') renderConnectionPanel();
   else if (activeSettingsPanel === 'search') renderSearchPanel();
-  else if (activeSettingsPanel === 'updates') renderUpdatesPanel();
   else if (activeSettingsPanel === 'admin') renderAdminPanel();
 }
 
@@ -1793,26 +1390,19 @@ function renderAccountPanel() {
 
 function renderHomePanel() {
   const modulesListHtml = availableModules.length > 0
-    ? availableModules.map(mod => {
-        const isVis = isVisionCapableModelName(mod);
-        return `
+    ? availableModules.map(mod => `
         <div class="module-chip">
           <span>${escapeHtml(mod)}</span>
-          <div style="display:flex; gap:6px;">
-            ${isVis ? '<span class="mod-tag vision">Vision</span>' : ''}
-            <span class="mod-tag">${mod === connSettings.modelName ? 'Active' : 'Pulled'}</span>
-          </div>
-        </div>`;
-      }).join('')
+          <span class="mod-tag">${mod === connSettings.modelName ? 'Active' : 'Pulled'}</span>
+        </div>
+      `).join('')
     : `<div style="color:var(--muted); font-size:12.5px;">No modules detected. Connect to your host first.</div>`;
 
   settingsContent.innerHTML = `
     <h2>Home</h2>
     <div class="info-line"><span class="label">Version</span><span>${APP_VERSION}</span></div>
     <div class="info-line"><span class="label">Account</span><span>${escapeHtml(signedInProfile?.username || '')}</span></div>
-    <div class="info-line"><span class="label">Primary model</span><span>${escapeHtml(connSettings.modelName) || 'none'}</span></div>
-    <div class="info-line"><span class="label">Vision model</span><span>${escapeHtml(getEffectiveVisionModel()) || 'none detected'}</span></div>
-    <div class="info-line"><span class="label">Model thinking</span><span>${connSettings.enableThinking ? 'Enabled' : 'Disabled (fast)'}</span></div>
+    <div class="info-line"><span class="label">Connected model</span><span>${escapeHtml(connSettings.modelName) || 'none'}</span></div>
     <div class="info-line">
       <span class="label">Modules</span>
       <button type="button" class="modules-toggle-btn" id="toggleModulesBtn">${availableModules.length} available ▾</button>
@@ -1830,11 +1420,7 @@ function renderTrainerPanel() {
     <h2>Trainer</h2>
     <p style="color:var(--muted); font-size:13px; margin-bottom:14px;">Standing instructions injected into every conversation.</p>
     <div class="settings-row"><textarea id="newMemoryText" placeholder="e.g. Always be concise and direct."></textarea></div>
-    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-      <button class="settings-btn" id="addMemoryBtn">Add Memory</button>
-      <button class="settings-btn secondary" id="trainerSyncNowBtn">Sync past 7 days now</button>
-    </div>
-    <div id="trainerSyncStatus" style="margin-top:8px; font-size:12px; color:#4fd87f;"></div>
+    <button class="settings-btn" id="addMemoryBtn">Add Memory</button>
     <div style="margin-top:20px;">
       ${trainerMemory.map((m, idx) => `<div class="memory-item"><span>${escapeHtml(m)}</span><button class="remove-mem" data-idx="${idx}">✕</button></div>`).join('')}
     </div>
@@ -1844,30 +1430,15 @@ function renderTrainerPanel() {
     if (!val) return;
     trainerMemory.push(val); saveMemory(); renderTrainerPanel();
   });
-  document.getElementById('trainerSyncNowBtn').addEventListener('click', async () => {
-    const status = document.getElementById('trainerSyncStatus');
-    status.style.color = 'var(--muted)';
-    status.textContent = 'Syncing past 7 days of headlines & cybersecurity news...';
-    await refreshDailyBriefing(true);
-    status.style.color = '#4fd87f';
-    status.textContent = 'Past 7 days intelligence synced.';
-  });
   settingsContent.querySelectorAll('.remove-mem').forEach(btn => {
     btn.addEventListener('click', () => { trainerMemory.splice(parseInt(btn.dataset.idx, 10), 1); saveMemory(); renderTrainerPanel(); });
   });
 }
 
 function renderConnectionPanel() {
-  const isPreset = COMMON_MODEL_PRESETS.some(p => p.value === connSettings.modelName);
-  const selectedPreset = isPreset ? connSettings.modelName : '__custom__';
-  const isLocked = selectedPreset !== '__custom__';
-
   settingsContent.innerHTML = `
     <h2>Connection</h2>
-    <div class="settings-row">
-      <label>Server URL</label>
-      <input id="connBaseUrl" placeholder="http://100.x.x.x:11434" value="${escapeHtml(connSettings.baseUrl)}">
-    </div>
+    <div class="settings-row"><label>Server URL</label><input id="connBaseUrl" placeholder="http://100.x.x.x:11434" value="${escapeHtml(connSettings.baseUrl)}"></div>
     <div class="settings-row">
       <label>API Type</label>
       <select id="connApiType">
@@ -1875,62 +1446,16 @@ function renderConnectionPanel() {
         <option value="openai" ${connSettings.apiType === 'openai' ? 'selected' : ''}>LM Studio / OpenAI-compatible</option>
       </select>
     </div>
-    <div class="settings-row">
-      <label>Model Preset</label>
-      <select id="connModelPreset">
-        ${COMMON_MODEL_PRESETS.map(p => `<option value="${escapeHtml(p.value)}" ${selectedPreset === p.value ? 'selected' : ''}>${escapeHtml(p.label)}</option>`).join('')}
-        <option value="__custom__" ${selectedPreset === '__custom__' ? 'selected' : ''}>Custom model...</option>
-      </select>
-    </div>
-    <div class="settings-row">
-      <label>Model Name</label>
-      <input id="connModelName" placeholder="e.g. huihui_ai/qwen3-abliterated:8b" value="${escapeHtml(connSettings.modelName)}" ${isLocked ? 'disabled' : ''}>
-    </div>
-    <div class="settings-row">
-      <label>Vision Model (for image attachments)</label>
-      <input id="connVisionModelName" placeholder="Auto-detected or e.g. huihui_ai/qwen2.5-vl-abliterated:7b" value="${escapeHtml(connSettings.visionModelName)}">
-    </div>
-    <div class="settings-row" style="display:flex; align-items:center; gap:8px;">
-      <input type="checkbox" id="connEnableThinking" ${connSettings.enableThinking ? 'checked' : ''} style="width:auto;">
-      <label style="margin:0; text-transform:none; font-size:13px; letter-spacing:0;">Enable Model Thinking / Reasoning (slower responses)</label>
-    </div>
+    <div class="settings-row"><label>Model Name (use a vision model like llava or qwen2.5vl for images)</label><input id="connModelName" placeholder="e.g. huihui_ai/qwen3-abliterated:8b" value="${escapeHtml(connSettings.modelName)}"></div>
+    <div class="settings-row"><label>Historical Knowledge Cutoff</label><input id="connKnowledgeCutoff" placeholder="e.g. (-inf - 2026)" value="${escapeHtml(connSettings.knowledgeCutoff || '(-inf - 2026)')}"></div>
     <button class="settings-btn" id="connConnectBtn">Connect</button>
     <div id="connStatusModal" style="margin-top:10px; font-size:12.5px; color:${connected ? '#4fd87f' : 'var(--muted)'};">${connected ? 'connected' : 'not connected'}</div>
   `;
-
-  const presetSelect = document.getElementById('connModelPreset');
-  const modelInput = document.getElementById('connModelName');
-  const visionInput = document.getElementById('connVisionModelName');
-
-  presetSelect.addEventListener('change', () => {
-    const val = presetSelect.value;
-    if (val === '__custom__') {
-      modelInput.disabled = false;
-      modelInput.focus();
-      modelInput.select();
-    } else {
-      modelInput.value = val;
-      modelInput.disabled = true;
-      if (isVisionCapableModelName(val)) {
-        visionInput.value = val;
-      }
-    }
-  });
-
-  modelInput.addEventListener('input', () => {
-    if (modelInput.disabled) return;
-    const typed = modelInput.value.trim();
-    if (isVisionCapableModelName(typed) && !visionInput.value.trim()) {
-      visionInput.value = typed;
-    }
-  });
-
   document.getElementById('connConnectBtn').addEventListener('click', async () => {
     connSettings.baseUrl = document.getElementById('connBaseUrl').value.trim();
     connSettings.apiType = document.getElementById('connApiType').value;
     connSettings.modelName = document.getElementById('connModelName').value.trim();
-    connSettings.visionModelName = document.getElementById('connVisionModelName').value.trim();
-    connSettings.enableThinking = document.getElementById('connEnableThinking').checked;
+    connSettings.knowledgeCutoff = document.getElementById('connKnowledgeCutoff').value.trim();
     await testConnection(document.getElementById('connStatusModal'));
   });
 }
@@ -1939,9 +1464,6 @@ function renderSearchPanel() {
   const isBrave = webSearchSettings.provider === 'brave';
   settingsContent.innerHTML = `
     <h2>Search</h2>
-    <p style="color:var(--muted); font-size:13px; margin-bottom:14px;">
-      Configure your web search provider and API key for live web browsing in chat.
-    </p>
     <div class="settings-row">
       <label>Search Provider</label>
       <select id="searchProviderSelect">
@@ -1957,14 +1479,9 @@ function renderSearchPanel() {
       <label>Brave Search API Key</label>
       <input id="braveApiKeyInput" placeholder="BSA..." value="${escapeHtml(webSearchSettings.braveApiKey)}">
     </div>
-    <div class="settings-row" style="display:flex; align-items:center; gap:8px;">
-      <input type="checkbox" id="searchEnabledByDefault" ${webSearchSettings.enabledByDefault ? 'checked' : ''} style="width:auto;">
-      <label style="margin:0; text-transform:none; font-size:13px; letter-spacing:0;">Turn on web search by default for new chats</label>
-    </div>
     <button class="settings-btn" id="saveSearchBtn">Save</button>
     <div id="searchSaveStatus" style="margin-top:8px; font-size:12px; color:#4fd87f;"></div>
   `;
-
   document.getElementById('searchProviderSelect').addEventListener('change', (e) => {
     const brave = e.target.value === 'brave';
     document.getElementById('tavilyKeyRow').style.display = brave ? 'none' : 'block';
@@ -1974,111 +1491,34 @@ function renderSearchPanel() {
     webSearchSettings.provider = document.getElementById('searchProviderSelect').value;
     webSearchSettings.tavilyApiKey = document.getElementById('tavilyApiKeyInput').value.trim();
     webSearchSettings.braveApiKey = document.getElementById('braveApiKeyInput').value.trim();
-    webSearchSettings.enabledByDefault = document.getElementById('searchEnabledByDefault').checked;
-    saveSearchSettings();
-    webSearchActive = !!webSearchSettings.enabledByDefault;
-    document.getElementById('webSearchBtn').classList.toggle('active', webSearchActive);
+    localStorage.setItem(SEARCH_KEY, JSON.stringify(webSearchSettings));
     document.getElementById('searchSaveStatus').textContent = 'Search settings saved.';
   });
 }
 
-function renderUpdatesPanel() {
-  const briefingText = dailyBriefing.date
-    ? `${dailyBriefing.weekKey || dailyBriefing.date}`
-    : 'Not synced';
-
-  settingsContent.innerHTML = `
-    <h2>Updates</h2>
-    <p style="color:var(--muted); font-size:13px; line-height:1.5; margin-bottom:14px;">
-      Release notes, active system status, and weekly briefing state for PJAI.
-    </p>
-
-    <div class="admin-metrics-grid">
-      <div class="admin-metric-card"><div class="metric-val">${APP_VERSION}</div><div class="metric-lbl">Current Version</div></div>
-      <div class="admin-metric-card"><div class="metric-val">${trainerMemory.length}</div><div class="metric-lbl">Trainer Rules</div></div>
-      <div class="admin-metric-card"><div class="metric-val" style="font-size:15px; padding-top:4px;">${escapeHtml(briefingText)}</div><div class="metric-lbl">Weekly Briefing</div></div>
-    </div>
-
-    <div class="archive-card">
-      <div class="archive-card-header">
-        <div class="archive-card-title">PJAI ${APP_VERSION} — Performance & Controls</div>
-        <span class="archive-badge">Latest</span>
-      </div>
-      <div class="archive-card-snippet">
-        • Added an interactive Stop button to immediately abort in-flight AI responses.<br>
-        • Disabled slow model reasoning chains (<code>think: false</code>) by default for faster prompt replies.<br>
-        • Enabled automatic background syncing of major world & cybersecurity headlines.<br>
-        • Full session & host connection teardown upon logout.
-      </div>
-    </div>
-
-    <div class="archive-card">
-      <div class="archive-card-header">
-        <div class="archive-card-title">PJAI 1.11 — Multimodal Routing & Admin Controls</div>
-        <span class="archive-badge">Release</span>
-      </div>
-      <div class="archive-card-snippet">
-        • Automatic vision model routing for image attachments and multimodal history sanitization.<br>
-        • Curated 6-model preset selector with custom model override.<br>
-        • Account email management and admin user chat suspension tools.
-      </div>
-    </div>
-  `;
-}
-
-async function runWebSearch(query, maxResults = 4, dateRange = null, signal = null) {
-  const fetchOpts = signal ? { signal } : {};
+async function runWebSearch(query, maxResults = 4) {
   if (webSearchSettings.provider === 'brave') {
     if (!webSearchSettings.braveApiKey) throw new Error('No Brave Search API key set in Settings → Search.');
-    let effectiveQuery = query;
-    if (dateRange && dateRange.startDate && dateRange.endDate) {
-      effectiveQuery += ` after:${dateRange.startDate} before:${dateRange.endDate}`;
-    }
-    const targetUrl = `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(effectiveQuery)}&count=${maxResults}`;
+    const targetUrl = `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=${maxResults}`;
     let res;
     try {
-      res = await fetch(targetUrl, {
-        ...fetchOpts,
-        headers: { 'Accept': 'application/json', 'X-Subscription-Token': webSearchSettings.braveApiKey }
-      });
+      res = await fetch(targetUrl, { headers: { 'Accept': 'application/json', 'X-Subscription-Token': webSearchSettings.braveApiKey } });
     } catch (e) {
-      if (e.name === 'AbortError') throw e;
-      res = await fetch(`https://corsproxy.io/?${encodeURIComponent(targetUrl)}`, {
-        ...fetchOpts,
-        headers: { 'Accept': 'application/json', 'X-Subscription-Token': webSearchSettings.braveApiKey }
-      });
+      res = await fetch(`https://corsproxy.io/?${encodeURIComponent(targetUrl)}`, { headers: { 'Accept': 'application/json', 'X-Subscription-Token': webSearchSettings.braveApiKey } });
     }
     if (!res.ok) throw new Error('Brave search failed: ' + res.status);
     const data = await res.json();
-    return ((data.web && data.web.results) || []).map(r => ({
-      title: r.title || 'Untitled',
-      url: r.url || '',
-      content: r.description || '',
-      publishedDate: r.page_age || r.age || ''
-    }));
+    return ((data.web && data.web.results) || []).map(r => ({ title: r.title || 'Untitled', url: r.url || '', content: r.description || '' }));
   }
   if (!webSearchSettings.tavilyApiKey) throw new Error('No Tavily API key set in Settings → Search.');
-  const body = { query, max_results: maxResults, include_answer: false, search_depth: 'advanced' };
-  if (dateRange && dateRange.startDate && dateRange.endDate) {
-    body.start_date = dateRange.startDate;
-    body.end_date = dateRange.endDate;
-  } else if (dateRange && dateRange.timeRange) {
-    body.time_range = dateRange.timeRange;
-  }
   const res = await fetch('https://api.tavily.com/search', {
-    ...fetchOpts,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + webSearchSettings.tavilyApiKey },
-    body: JSON.stringify(body)
+    body: JSON.stringify({ query, max_results: maxResults, include_answer: false })
   });
   if (!res.ok) throw new Error('Tavily search failed: ' + res.status);
   const data = await res.json();
-  return (data.results || []).map(r => ({
-    title: r.title || 'Untitled',
-    url: r.url || '',
-    content: r.content || r.snippet || '',
-    publishedDate: r.published_date || ''
-  }));
+  return (data.results || []).map(r => ({ title: r.title || 'Untitled', url: r.url || '', content: r.content || r.snippet || '' }));
 }
 
 async function renderAdminPanel() {
@@ -2103,18 +1543,6 @@ async function renderAdminPanel() {
       <div class="admin-metric-card"><div class="metric-val">${adminCount}</div><div class="metric-lbl">Admins</div></div>
       <div class="admin-metric-card"><div class="metric-val">${suspendedCount}</div><div class="metric-lbl">Suspended</div></div>
     </div>
-
-    <div style="margin-bottom:20px; padding:14px; background:var(--bg); border:1px solid var(--border); border-radius:10px;">
-      <h3 style="font-size:14px; margin:0 0 6px;">Historical Knowledge Backfill</h3>
-      <p style="color:var(--muted); font-size:12px; line-height:1.5; margin:0 0 10px;">Search month by month across a date range to populate the Shared Research Archive (${sharedKnowledge.length} sources archived).</p>
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-        <div class="settings-row" style="margin-bottom:10px;"><label>Start date</label><input type="date" id="adminBackfillStartDate" value="2025-01-01"></div>
-        <div class="settings-row" style="margin-bottom:10px;"><label>End date</label><input type="date" id="adminBackfillEndDate" value="${new Date().toISOString().slice(0,10)}"></div>
-      </div>
-      <button class="settings-btn secondary" id="adminStartBackfillBtn">Build Historical Archive</button>
-      <div id="adminBackfillStatus" style="margin-top:8px; font-size:12px; color:var(--muted);"></div>
-    </div>
-
     <h3 style="font-size:14px; margin:14px 0 8px;">User Roles & Chat Suspensions</h3>
     <div id="adminStatus" style="font-size:12px; color:var(--muted); margin-bottom:10px;"></div>
     ${data.map(u => {
@@ -2141,13 +1569,6 @@ async function renderAdminPanel() {
       </div>`;
     }).join('')}
   `;
-
-  document.getElementById('adminStartBackfillBtn').addEventListener('click', async () => {
-    const statusEl = document.getElementById('adminBackfillStatus');
-    const start = document.getElementById('adminBackfillStartDate').value;
-    const end = document.getElementById('adminBackfillEndDate').value;
-    await runHistoricalBackfill(start, end, statusEl);
-  });
 
   settingsContent.querySelectorAll('[data-role-user]').forEach(btn => {
     btn.addEventListener('click', async () => {
@@ -2187,11 +1608,6 @@ async function renderAdminPanel() {
 }
 
 async function handleSend() {
-  if (isGenerating) {
-    stopCurrentGeneration();
-    return;
-  }
-
   if (currentUserId && supabaseClient) {
     try {
       const { data: freshProfile } = await supabaseClient.from('profiles').select('suspended_until').eq('id', currentUserId).single();
@@ -2200,8 +1616,7 @@ async function handleSend() {
   }
   if (isUserSuspended()) {
     updateConnectionUIState();
-    const statusLabel = document.getElementById('inlineModelLabel');
-    if (statusLabel) statusLabel.textContent = `Suspended until ${new Date(signedInProfile.suspended_until).toLocaleString()}`;
+    alert(`You are suspended from chatting with the AI until ${new Date(signedInProfile.suspended_until).toLocaleString()}.`);
     return;
   }
 
@@ -2214,34 +1629,6 @@ async function handleSend() {
   if (!chat) return;
 
   const attachmentsForMsg = [...pendingAttachments];
-  const hasNewImages = attachmentsForMsg.some(a => a.type === 'image');
-
-  let targetModel = connSettings.modelName || 'huihui_ai/qwen3-abliterated:8b';
-  let routedToVision = false;
-
-  if (hasNewImages) {
-    const visionModel = getEffectiveVisionModel();
-    if (!visionModel) {
-      chat.messages.push({ role: 'user', content: promptText, attachments: attachmentsForMsg });
-      chat.messages.push({
-        role: 'assistant',
-        content: `Error: No vision-capable model is available to analyze images. Your active model (\`${targetModel}\`) is text-only.\n\n**How to fix:**\n1. Pull a vision model on your host (e.g. \`ollama pull huihui_ai/qwen2.5-vl-abliterated:7b\` or \`ollama pull qwen2.5vl:7b\`).\n2. Select it in **Settings → Connection** and click **Connect**.`
-      });
-      input.value = '';
-      input.style.height = 'auto';
-      pendingAttachments = [];
-      renderPendingAttachments();
-      saveChats();
-      renderSidebar();
-      renderChat();
-      return;
-    }
-    if (visionModel !== targetModel) {
-      targetModel = visionModel;
-      routedToVision = true;
-    }
-  }
-
   chat.messages.push({ role: 'user', content: promptText, attachments: attachmentsForMsg });
   input.value = '';
   input.style.height = 'auto';
@@ -2251,58 +1638,37 @@ async function handleSend() {
   renderSidebar();
   renderChat();
 
-  const abortController = new AbortController();
-  currentAbortController = abortController;
-  setSendButtonGenerating(true);
-
+  document.getElementById('sendBtn').disabled = true;
   const usingSearch = webSearchActive;
-  chat.messages.push({
-    role: 'assistant',
-    content: usingSearch ? 'searching...' : (routedToVision ? 'analyzing image...' : 'thinking...'),
-    pending: true
-  });
+  chat.messages.push({ role: 'assistant', content: usingSearch ? 'searching...' : 'thinking...', pending: true });
   renderChat();
 
   const base = (connSettings.baseUrl || '').replace(/\/$/, '');
+  const model = connSettings.modelName || 'qwen3:8b';
 
   try {
     let searchResultsUsed = null;
     let systemPrompts = [];
-
-    if (dailyBriefing.summary) {
-      systemPrompts.push(`Weekly World & Cybersecurity Briefing (${dailyBriefing.weekKey || dailyBriefing.date}):\n${dailyBriefing.summary}`);
-    }
-
-    const relevantKnowledge = promptText ? retrieveSharedKnowledge(promptText, 6) : [];
-    if (relevantKnowledge.length) {
-      systemPrompts.push(formatKnowledgeForModel(relevantKnowledge));
-    }
-
     if (trainerMemory.length > 0) {
       systemPrompts.push('Standing instructions:\n' + trainerMemory.join('\n'));
     }
 
     if (usingSearch && promptText) {
       try {
-        const results = await runWebSearch(promptText, 4, null, abortController.signal);
+        const results = await runWebSearch(promptText, 4);
         if (results.length > 0) {
           searchResultsUsed = results;
-          saveSearchResultsToKnowledge(results, promptText, 'manual web search');
           const searchBlock = 'LIVE WEB SEARCH RESULTS:\n' + results.map((r, i) => `[${i + 1}] ${r.title} (${r.url})\n${r.content}`).join('\n\n');
           systemPrompts.push(searchBlock);
         }
       } catch (searchErr) {
-        if (searchErr.name === 'AbortError') throw searchErr;
         systemPrompts.push('Note: web search failed (' + searchErr.message + ').');
       }
-      if (abortController.signal.aborted) throw new DOMException('Aborted', 'AbortError');
-      chat.messages[chat.messages.length - 1].content = routedToVision ? 'analyzing image...' : 'thinking...';
+      chat.messages[chat.messages.length - 1].content = 'thinking...';
       renderChat();
     }
 
     const rawHistory = chat.messages.filter(m => !m.pending).slice(-10);
-    const targetSupportsVision = isVisionCapableModelName(targetModel) || hasNewImages;
-    const enableThinking = !!connSettings.enableThinking;
     let replyText = '';
 
     if (connSettings.apiType === 'ollama') {
@@ -2310,23 +1676,15 @@ async function handleSend() {
       if (systemPrompts.length > 0) {
         ollamaMessages.push({ role: 'system', content: systemPrompts.join('\n\n') });
       }
-      rawHistory.forEach((m, idx) => {
-        const isCurrentTurn = (idx === rawHistory.length - 1);
+      rawHistory.forEach(m => {
         let textContent = m.content || '';
         const textFiles = (m.attachments || []).filter(a => a.type === 'text');
         if (textFiles.length > 0) {
           textContent += '\n\n' + textFiles.map(f => `[Attached file: ${f.name}]\n${f.data}`).join('\n\n');
         }
+        const msgObj = { role: m.role, content: textContent || (m.attachments && m.attachments.length ? 'Analyze the attached image.' : '') };
         const imgs = (m.attachments || []).filter(a => a.type === 'image');
-        const includeImages = imgs.length > 0 && targetSupportsVision && (isCurrentTurn || isVisionCapableModelName(targetModel));
-        if (!includeImages && imgs.length > 0) {
-          textContent = `[User previously attached ${imgs.length} image(s)]\n` + textContent;
-        }
-        const msgObj = {
-          role: m.role,
-          content: textContent || (includeImages ? 'Describe and analyze this image in detail.' : '')
-        };
-        if (includeImages) {
+        if (imgs.length > 0) {
           msgObj.images = imgs.map(img => img.data.includes(',') ? img.data.split(',')[1] : img.data);
         }
         ollamaMessages.push(msgObj);
@@ -2334,18 +1692,12 @@ async function handleSend() {
 
       const res = await fetch(base + '/api/chat', {
         method: 'POST',
-        signal: abortController.signal,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: targetModel,
-          messages: ollamaMessages,
-          stream: false,
-          think: enableThinking
-        })
+        body: JSON.stringify({ model, messages: ollamaMessages, stream: false })
       });
       if (!res.ok) {
         const errBody = await res.text().catch(() => '');
-        throw new Error(`request failed (${res.status}): ${errBody}`);
+        throw new Error(`request failed (${res.status}): ${errBody || 'Ensure a vision-capable model (e.g. llava, qwen2.5vl, gemma3) is selected if sending images.'}`);
       }
       const data = await res.json();
       replyText = data.message?.content || '(no response)';
@@ -2354,79 +1706,45 @@ async function handleSend() {
       if (systemPrompts.length > 0) {
         openaiMessages.push({ role: 'system', content: systemPrompts.join('\n\n') });
       }
-      rawHistory.forEach((m, idx) => {
-        const isCurrentTurn = (idx === rawHistory.length - 1);
+      rawHistory.forEach(m => {
         let textContent = m.content || '';
         const textFiles = (m.attachments || []).filter(a => a.type === 'text');
         if (textFiles.length > 0) {
           textContent += '\n\n' + textFiles.map(f => `[Attached file: ${f.name}]\n${f.data}`).join('\n\n');
         }
         const imgs = (m.attachments || []).filter(a => a.type === 'image');
-        const includeImages = imgs.length > 0 && targetSupportsVision && (isCurrentTurn || isVisionCapableModelName(targetModel));
-        if (includeImages) {
-          const parts = [{ type: 'text', text: textContent || 'Describe and analyze this image in detail.' }];
+        if (imgs.length > 0) {
+          const parts = [{ type: 'text', text: textContent || 'Analyze the attached image.' }];
           imgs.forEach(img => parts.push({ type: 'image_url', image_url: { url: img.data } }));
           openaiMessages.push({ role: m.role, content: parts });
         } else {
-          if (imgs.length > 0) textContent = `[User previously attached ${imgs.length} image(s)]\n` + textContent;
           openaiMessages.push({ role: m.role, content: textContent });
         }
       });
 
-      const payload = {
-        model: targetModel,
-        messages: openaiMessages,
-        stream: false
-      };
-      if (!enableThinking) {
-        payload.reasoning_effort = 'none';
-      }
-
       const res = await fetch(base + '/v1/chat/completions', {
         method: 'POST',
-        signal: abortController.signal,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({ model, messages: openaiMessages })
       });
       if (!res.ok) throw new Error('request failed: ' + res.status);
       const data = await res.json();
       replyText = data.choices?.[0]?.message?.content || '(no response)';
     }
 
-    chat.messages[chat.messages.length - 1] = {
-      role: 'assistant',
-      content: replyText,
-      sources: searchResultsUsed,
-      routedModel: routedToVision ? targetModel : null
-    };
+    chat.messages[chat.messages.length - 1] = { role: 'assistant', content: replyText, sources: searchResultsUsed };
   } catch (err) {
-    if (err && err.name === 'AbortError') {
-      chat.messages[chat.messages.length - 1] = { role: 'assistant', content: 'Stopped.' };
-    } else {
-      chat.messages[chat.messages.length - 1] = { role: 'assistant', content: 'Error: ' + err.message };
-    }
-  } finally {
-    currentAbortController = null;
-    setSendButtonGenerating(false);
+    chat.messages[chat.messages.length - 1] = { role: 'assistant', content: 'Error: ' + err.message };
   }
 
   saveChats();
   renderSidebar();
   renderChat();
+  document.getElementById('sendBtn').disabled = false;
   input.focus();
 }
 
-function copyTextSafe(text) {
-  const ta = document.createElement('textarea');
-  ta.value = text;
-  ta.style.position = 'fixed';
-  ta.style.opacity = '0';
-  document.body.appendChild(ta);
-  ta.select();
-  try { document.execCommand('copy'); } catch (e) {}
-  document.body.removeChild(ta);
-}
-
+// Register all UI event listeners immediately (DOM is already parsed since script is at bottom of body)
 function initApp() {
   document.getElementById("authSignInBtn").addEventListener("click", () => submitAuth("signin"));
   document.getElementById("authSignUpBtn").addEventListener("click", () => submitAuth("signup"));
@@ -2474,7 +1792,7 @@ function initApp() {
   userInputEl.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      if (!isGenerating) handleSend();
+      handleSend();
     }
   });
 
@@ -2482,9 +1800,10 @@ function initApp() {
     if (e.target && e.target.classList.contains('code-copy-btn')) {
       const codeEl = e.target.parentElement.querySelector('code');
       if (codeEl) {
-        copyTextSafe(codeEl.innerText);
-        e.target.textContent = 'Copied!';
-        setTimeout(() => e.target.textContent = 'Copy', 2000);
+        navigator.clipboard.writeText(codeEl.innerText).then(() => {
+          e.target.textContent = 'Copied!';
+          setTimeout(() => e.target.textContent = 'Copy', 2000);
+        });
       }
     }
     if (e.target && e.target.id === 'exportChatsBtn') {
@@ -2493,7 +1812,7 @@ function initApp() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `pjai_chats_${signedInProfile ? signedInProfile.username : 'user'}_${new Date().toISOString().slice(0, 10)}.json`;
+      a.download = `project_ai_chats_${signedInProfile ? signedInProfile.username : 'user'}_${new Date().toISOString().slice(0, 10)}.json`;
       a.click();
       URL.revokeObjectURL(url);
     }
@@ -2515,12 +1834,10 @@ function initApp() {
             saveChats();
             renderSidebar();
             renderChat();
-            const badge = document.getElementById('briefingStatusBadge');
-            if (badge) badge.textContent = 'Chats imported!';
+            alert('Chat history imported!');
           }
         } catch (err) {
-          const badge = document.getElementById('briefingStatusBadge');
-          if (badge) badge.textContent = 'Invalid JSON';
+          alert('Invalid JSON: ' + err.message);
         }
         e.target.value = '';
       };
@@ -2529,9 +1846,7 @@ function initApp() {
   });
 
   loadMemory();
-  loadSharedKnowledge();
   loadSearchSettings();
-  loadDailyBriefing();
   updateConnectionUIState();
 
   supabaseClient.auth.signOut().then(() => {
@@ -2540,6 +1855,17 @@ function initApp() {
     document.getElementById("authGate").style.display = "flex";
   });
 }
+
+
+  const sidebarEl = document.getElementById('sidebar');
+  const toggleSidebarBtn = document.getElementById('toggleSidebarBtn');
+  const closeSidebarBtn = document.getElementById('closeSidebarBtn');
+
+  function toggleSidebar() {
+    sidebarEl.classList.toggle('collapsed');
+  }
+  if (toggleSidebarBtn) toggleSidebarBtn.addEventListener('click', toggleSidebar);
+  if (closeSidebarBtn) closeSidebarBtn.addEventListener('click', toggleSidebar);
 
 initApp();
 </script>
