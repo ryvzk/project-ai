@@ -520,6 +520,33 @@
     padding: 3px 8px; border-radius: 6px; cursor: pointer;
   }
   .code-copy-btn:hover { background: rgba(255, 255, 255, 0.15); color: var(--text); }
+
+  /* MOBILE RESPONSIVENESS & TOUCH OPTIMIZATIONS */
+  @media (max-width: 768px) {
+    #sidebar {
+      position: absolute;
+      top: 0; bottom: 0; left: 0;
+      width: 280px !important;
+      z-index: 1000;
+      transform: translateX(0);
+      box-shadow: 10px 0 30px rgba(0,0,0,0.6);
+    }
+    #sidebar.collapsed {
+      transform: translateX(-100%);
+      width: 280px !important;
+      border-right: none;
+    }
+    .msg-row { max-width: 92% !important; }
+    #topbar { padding: 10px 14px; gap: 10px; }
+    #inputBar { padding: 10px 14px 18px; }
+    #heroState h1 { font-size: 30px; word-spacing: 4px; }
+    #settingsModal { width: 100vw !important; height: 100vh !important; max-width: 100vw; max-height: 100vh; border-radius: 0; flex-direction: column; }
+    #settingsNav { width: 100% !important; display: flex; overflow-x: auto; padding: 10px; gap: 6px; }
+    #settingsNav h3 { display: none; }
+    .settings-nav-item { white-space: nowrap; margin-bottom: 0; padding: 8px 12px; }
+    #settingsContent { padding: 18px 16px; }
+  }
+
 </style>
 </head>
 <body>
@@ -789,7 +816,7 @@ let trainerMemory = [];
 let searchQuery = '';
 let webSearchSettings = { provider: 'tavily', tavilyApiKey: '', braveApiKey: '', enabledByDefault: false };
 let webSearchActive = false;
-let connSettings = { baseUrl: '', apiType: 'ollama', modelName: '', knowledgeCutoff: '(-inf - 2026)' };
+let connSettings = { baseUrl: '', apiType: 'ollama', modelName: '' };
 
 function usernameEmail(username) { return username.trim().toLowerCase() + "@zsfxcvoxmhespcktjuow.supabase.co"; }
 function validUsername(username) { return /^[a-zA-Z0-9_]{3,24}$/.test(username); }
@@ -1447,7 +1474,6 @@ function renderConnectionPanel() {
       </select>
     </div>
     <div class="settings-row"><label>Model Name (use a vision model like llava or qwen2.5vl for images)</label><input id="connModelName" placeholder="e.g. huihui_ai/qwen3-abliterated:8b" value="${escapeHtml(connSettings.modelName)}"></div>
-    <div class="settings-row"><label>Historical Knowledge Cutoff</label><input id="connKnowledgeCutoff" placeholder="e.g. (-inf - 2026)" value="${escapeHtml(connSettings.knowledgeCutoff || '(-inf - 2026)')}"></div>
     <button class="settings-btn" id="connConnectBtn">Connect</button>
     <div id="connStatusModal" style="margin-top:10px; font-size:12.5px; color:${connected ? '#4fd87f' : 'var(--muted)'};">${connected ? 'connected' : 'not connected'}</div>
   `;
@@ -1455,7 +1481,6 @@ function renderConnectionPanel() {
     connSettings.baseUrl = document.getElementById('connBaseUrl').value.trim();
     connSettings.apiType = document.getElementById('connApiType').value;
     connSettings.modelName = document.getElementById('connModelName').value.trim();
-    connSettings.knowledgeCutoff = document.getElementById('connKnowledgeCutoff').value.trim();
     await testConnection(document.getElementById('connStatusModal'));
   });
 }
@@ -1864,6 +1889,15 @@ function initApp() {
   function toggleSidebar() {
     sidebarEl.classList.toggle('collapsed');
   }
+  // Auto-collapse sidebar on mobile when selecting a chat
+  document.addEventListener('click', (e) => {
+    if (window.innerWidth <= 768 && !sidebarEl.contains(e.target) && !toggleSidebarBtn.contains(e.target) && !sidebarEl.classList.contains('collapsed')) {
+      // If clicking outside sidebar on mobile, collapse it
+      if (e.target.closest('#chat') || e.target.closest('#inputBar') || e.target.closest('#topbar')) {
+        sidebarEl.classList.add('collapsed');
+      }
+    }
+  });
   if (toggleSidebarBtn) toggleSidebarBtn.addEventListener('click', toggleSidebar);
   if (closeSidebarBtn) closeSidebarBtn.addEventListener('click', toggleSidebar);
 
