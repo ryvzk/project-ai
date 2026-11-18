@@ -877,6 +877,13 @@ const supabaseClient = createNativeSupabaseClient(SUPABASE_URL, SUPABASE_PUBLISH
 const MEMORY_KEY = 'local_ai_trainer_memory_v3';
 const SEARCH_KEY = 'local_ai_search_v4';
 const APP_VERSION = '1.12';
+const COMMON_MODEL_PRESETS = [
+  "qwen3:8b",
+  "gemma3:12b",
+  "huihui_ai/qwen3-abliterated:8b",
+  "huihui_ai/deepseek-r1-abliterated:8b"
+];
+
 
 let signedInProfile = null;
 let currentUserId = null;
@@ -890,7 +897,7 @@ let trainerMemory = [];
 let searchQuery = '';
 let webSearchSettings = { provider: 'tavily', tavilyApiKey: '', braveApiKey: '', enabledByDefault: false };
 let webSearchActive = false;
-let connSettings = { baseUrl: '', apiType: 'ollama', modelName: '' };
+let connSettings = { baseUrl: '', apiType: 'ollama', modelName: 'qwen3:8b' };
 
 function usernameEmail(username) { return username.trim().toLowerCase() + "@zsfxcvoxmhespcktjuow.supabase.co"; }
 function validUsername(username) { return /^[a-zA-Z0-9_]{3,24}$/.test(username); }
@@ -1537,6 +1544,12 @@ function renderTrainerPanel() {
 }
 
 function renderConnectionPanel() {
+  const allOptions = [...COMMON_MODEL_PRESETS];
+  availableModules.forEach(m => {
+    if (!allOptions.includes(m)) allOptions.push(m);
+  });
+  const isCustom = connSettings.modelName && !allOptions.includes(connSettings.modelName);
+
   settingsContent.innerHTML = `
     <h2>Connection</h2>
     <div class="settings-row"><label>Server URL</label><input id="connBaseUrl" placeholder="http://100.x.x.x:11434" value="${escapeHtml(connSettings.baseUrl)}"></div>
@@ -1547,15 +1560,46 @@ function renderConnectionPanel() {
         <option value="openai" ${connSettings.apiType === 'openai' ? 'selected' : ''}>LM Studio / OpenAI-compatible</option>
       </select>
     </div>
-    <div class="settings-row"><label>Model Name (use a vision model like llava or qwen2.5vl for images)</label><input id="connModelName" placeholder="e.g. huihui_ai/qwen3-abliterated:8b" value="${escapeHtml(connSettings.modelName)}"></div>
+    <div class="settings-row">
+      <label>Model Preset</label>
+      <select id="connModelSelect">
+        ${allOptions.map(m => `<option value="${escapeHtml(m)}" ${connSettings.modelName === m ? 'selected' : ''}>${escapeHtml(m)}</option>`).join('')}
+        <option value="__custom__" ${isCustom ? 'selected' : ''}>Custom model...</option>
+      </select>
+    </div>
+    <div class="settings-row" id="customModelRow" style="display:${isCustom ? 'block' : 'none'};">
+      <label>Custom Model Name</label>
+      <input id="connModelName" placeholder="e.g. huihui_ai/qwen3-abliterated:8b" value="${escapeHtml(connSettings.modelName)}">
+    </div>
     <button class="settings-btn" id="connConnectBtn">Connect</button>
     <div id="connStatusModal" style="margin-top:10px; font-size:12.5px; color:${connected ? '#4fd87f' : 'var(--muted)'};">${connected ? 'connected' : 'not connected'}</div>
   `;
+
+  const modelSelect = document.getElementById('connModelSelect');
+  const customRow = document.getElementById('customModelRow');
+  const customInput = document.getElementById('connModelName');
+
+  modelSelect.addEventListener('change', () => {
+    if (modelSelect.value === '__custom__') {
+      customRow.style.display = 'block';
+      customInput.focus();
+    } else {
+      customRow.style.display = 'none';
+      customInput.value = modelSelect.value;
+      connSettings.modelName = modelSelect.value;
+      if (connected) {
+        document.getElementById('modelBadge').textContent = 'model: ' + connSettings.modelName;
+        document.getElementById('inlineModelLabel').textContent = connSettings.modelName;
+      }
+    }
+  });
+
   document.getElementById('connConnectBtn').addEventListener('click', async () => {
     connSettings.baseUrl = document.getElementById('connBaseUrl').value.trim();
     connSettings.apiType = document.getElementById('connApiType').value;
-    connSettings.modelName = document.getElementById('connModelName').value.trim();
+    connSettings.modelName = modelSelect.value === '__custom__' ? customInput.value.trim() : modelSelect.value;
     await testConnection(document.getElementById('connStatusModal'));
+    renderConnectionPanel();
   });
 }
 
